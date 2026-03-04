@@ -3,10 +3,71 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+
 export default function SignupPage() {
     const router = useRouter()
+
     const [loading, setLoading] = useState(false)
     const [focused, setFocused] = useState<string | null>(null)
+
+    const [username, setUsername] = useState("")
+    const [email, setEmail] = useState("")
+    const [password, setPassword] = useState("")
+    const [error, setError] = useState("")
+
+    const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    setError("")
+
+    try {
+        // 1️⃣ create user
+        const signupRes = await fetch("https://zynon.onrender.com/api/auth/signup", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "x-client-type": "web"
+            },
+            body: JSON.stringify({
+                username,
+                email,
+                password
+            })
+        })
+
+        const signupData = await signupRes.json()
+
+        if (!signupRes.ok) {
+            throw new Error(signupData.message || "Signup failed")
+        }
+
+        // 2️⃣ send verification email
+        const otpRes = await fetch("https://zynon.onrender.com/api/auth/send-email-verification", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ email })
+        })
+
+        const otpData = await otpRes.json()
+
+        if (!otpRes.ok) {
+            throw new Error(otpData.message || "Failed to send verification email")
+        }
+
+        // 3️⃣ store email temporarily for verify page
+        sessionStorage.setItem("verifyEmail", email)
+
+        // 4️⃣ redirect to verify page
+        router.push("/verifyEmail")
+
+    } catch (err: any) {
+        setError(err.message)
+    } finally {
+        setLoading(false)
+    }
+}
 
     const styles = {
         container: {
@@ -15,7 +76,6 @@ export default function SignupPage() {
             justifyContent: 'center',
             minHeight: '100vh',
             backgroundColor: '#000',
-            // Animated Mesh Gradient (Android 16 vibe)
             background: `radial-gradient(circle at 20% 20%, rgba(99, 102, 241, 0.15) 0%, transparent 40%),
                          radial-gradient(circle at 80% 80%, rgba(168, 85, 247, 0.15) 0%, transparent 40%)`,
             fontFamily: 'SF Pro Display, Inter, system-ui, sans-serif',
@@ -26,7 +86,7 @@ export default function SignupPage() {
             width: '100%',
             maxWidth: '400px',
             padding: '40px',
-            borderRadius: '38px', // Ultra-rounded Android 16 style
+            borderRadius: '38px',
             backgroundColor: 'rgba(255, 255, 255, 0.03)',
             backdropFilter: 'blur(40px) saturate(180%)',
             WebkitBackdropFilter: 'blur(40px) saturate(180%)',
@@ -105,12 +165,6 @@ export default function SignupPage() {
             fontWeight: 600,
             cursor: 'pointer',
             transition: 'transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1)',
-        },
-        footerText: {
-            marginTop: '24px',
-            textAlign: 'center' as const,
-            fontSize: '14px',
-            color: 'rgba(255, 255, 255, 0.4)',
         }
     }
 
@@ -122,61 +176,61 @@ export default function SignupPage() {
                     <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '16px' }}>Create your universe.</p>
                 </div>
 
-                <button
-                    style={styles.googleBtn}
-                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.1)'}
-                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)'}
-                >
-                    <svg width="18" height="18" viewBox="0 0 24 24">
-                        <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
-                        <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                        <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" />
-                        <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.66l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 12-4.53z" />
-                    </svg>
-                    Sign up with Google
-                </button>
-
                 <div style={styles.divider}>
                     <div style={styles.line}></div>
                     <span>OR</span>
                     <div style={styles.line}></div>
                 </div>
 
-                <form onSubmit={(e) => { e.preventDefault(); setLoading(true); }}>
+                <form onSubmit={handleSignup}>
                     <div style={styles.inputWrapper}>
                         <input
                             style={styles.input(focused === 'user')}
                             placeholder="Username"
+                            value={username}
+                            onChange={(e) => setUsername(e.target.value)}
                             onFocus={() => setFocused('user')}
                             onBlur={() => setFocused(null)}
+                            required
                         />
                     </div>
+
                     <div style={styles.inputWrapper}>
                         <input
                             style={styles.input(focused === 'email')}
                             placeholder="Email address"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
                             onFocus={() => setFocused('email')}
                             onBlur={() => setFocused(null)}
+                            required
                         />
                     </div>
+
                     <div style={styles.inputWrapper}>
                         <input
                             type="password"
                             style={styles.input(focused === 'pass')}
                             placeholder="Password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
                             onFocus={() => setFocused('pass')}
                             onBlur={() => setFocused(null)}
+                            required
                         />
                     </div>
 
-                    <button
-                        style={styles.submitBtn}
-                        onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.96)'}
-                        onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
-                    >
+                    {error && (
+                        <p style={{ color: "#ff6b6b", fontSize: "14px", marginTop: "10px" }}>
+                            {error}
+                        </p>
+                    )}
+
+                    <button style={styles.submitBtn}>
                         {loading ? 'Joining...' : 'Get Started'}
                     </button>
                 </form>
+
                 <div className="mt-8 text-center text-sm text-white/40">
                     Already part of the universe?{' '}
                     <Link href="/login" className="font-medium text-white hover:underline">
