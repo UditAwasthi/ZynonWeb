@@ -9,7 +9,7 @@ export default function ProfilePage() {
     const router = useRouter()
     const [profile, setProfile] = useState<any>(null)
     const [loading, setLoading] = useState(true)
-
+    const [uploading, setUploading] = useState(false)
     // Token logic maintained
     const token = typeof window !== "undefined" ? localStorage.getItem("accessToken") : null
 
@@ -37,7 +37,38 @@ export default function ProfilePage() {
     if (!profile) return <ErrorState />
 
     const username = profile.user?.username || "user"
+    const uploadPhoto = async (file: File) => {
+        try {
+            setUploading(true)
 
+            const token = localStorage.getItem("accessToken")
+
+            const formData = new FormData()
+            formData.append("profilePicture", file)
+
+            const res = await fetch(`${API_BASE}/profile/photo`, {
+                method: "PATCH",
+                headers: {
+                    Authorization: `Bearer ${token}`
+                },
+                body: formData
+            })
+
+            const data = await res.json()
+
+            if (!res.ok) throw new Error(data.message)
+
+            setProfile((prev: any) => ({
+                ...prev,
+                profilePicture: data.data.profilePicture
+            }))
+
+        } catch (err) {
+            console.error(err)
+        } finally {
+            setUploading(false)
+        }
+    }
     return (
         <div className="min-h-screen bg-[#fafafa] dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 transition-colors duration-300">
             <main className="max-w-4xl mx-auto pt-12 pb-24 px-4">
@@ -46,14 +77,42 @@ export default function ProfilePage() {
                 <section className="flex flex-col md:flex-row gap-10 items-center md:items-start mb-16">
                     {/* Avatar with Ring */}
                     <div className="relative group">
+
                         <div className="absolute -inset-1 bg-gradient-to-tr from-yellow-400 to-fuchsia-600 rounded-full opacity-75 blur-sm group-hover:opacity-100 transition duration-1000"></div>
+
                         <div className="relative w-36 h-36 md:w-44 md:h-44 rounded-full p-1.5 bg-white dark:bg-zinc-950">
+
                             <img
                                 src={profile.profilePicture || "https://images.unsplash.com/photo-1614850523296-d8c1af93d400?auto=format&fit=crop&w=400&q=80"}
                                 className="w-full h-full rounded-full object-cover border border-zinc-200 dark:border-zinc-800"
                                 alt="Profile"
                             />
+
+                            {/* Upload Button */}
+
+                            <label className="absolute bottom-2 right-2 bg-black text-white p-2 rounded-full cursor-pointer hover:scale-110 transition shadow-lg">
+
+                                {uploading ? (
+                                    <span className="text-xs px-1">...</span>
+                                ) : (
+                                    <CameraUploadIcon />
+                                )}
+
+                                <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    onChange={(e) => {
+                                        if (e.target.files?.[0]) {
+                                            uploadPhoto(e.target.files[0])
+                                        }
+                                    }}
+                                />
+
+                            </label>
+
                         </div>
+
                     </div>
 
                     {/* Profile Details */}
@@ -215,5 +274,12 @@ const ImageIcon = () => (
         <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
         <circle cx="8.5" cy="8.5" r="1.5" />
         <path d="M21 15l-5-5L5 21" />
+    </svg>
+)
+
+const CameraUploadIcon = () => (
+    <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+        <path d="M3 7h4l2-3h6l2 3h4v12H3z"/>
+        <circle cx="12" cy="13" r="4"/>
     </svg>
 )
