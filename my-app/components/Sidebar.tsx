@@ -4,11 +4,16 @@ import React, { useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
+import { 
+    Home, Search, Compass, Play, 
+    MessageSquare, Heart, PlusSquare, 
+    LogOut, Menu, ChevronLeft, Shield 
+} from 'lucide-react'
 
 interface NavItem {
     label: string;
     path: string;
-    icon: React.ReactNode;
+    icon: React.ElementType;
     badge?: string;
     onClick?: () => void;
 }
@@ -35,27 +40,13 @@ export default function Sidebar() {
     }
 
     const navItems: NavItem[] = [
-        { label: 'Home', path: '/home', icon: <HomeIcon /> },
-        { label: 'Search', path: '/search', icon: <SearchIcon />, onClick: () => setIsCollapsed(false) },
-        { label: 'Explore', path: '/explore', icon: <ExploreIcon /> },
-        { label: 'Reels', path: '/reels', icon: <ReelsIcon /> },
-        { label: 'Messages', path: '/messages', icon: <MessagesIcon />, badge: "9+" },
-        { label: 'Notifications', path: '/notifications', icon: <HeartIcon /> },
-        { label: 'Create', path: '/create', icon: <PlusIcon /> },
-        {
-            label: 'Profile',
-            path: '/profile',
-            icon: (
-                <div className="w-6 h-6 rounded-full overflow-hidden border border-zinc-200 dark:border-zinc-800">
-                    <img
-                        src="https://images.unsplash.com/photo-1614850523296-d8c1af93d400?auto=format&fit=crop&w=100&q=80"
-                        className="w-full h-full object-cover grayscale hover:grayscale-0 transition-all duration-500"
-                        alt="Profile"
-                    />
-                </div>
-            )
-        },
-        { label: 'Logout', path: '#', icon: <LogoutIcon />, onClick: () => setShowLogoutConfirm(true) },
+        { label: 'Home', path: '/home', icon: Home },
+        { label: 'Search', path: '/search', icon: Search, onClick: () => setIsCollapsed(false) },
+        { label: 'Explore', path: '/explore', icon: Compass },
+        { label: 'Reels', path: '/reels', icon: Play },
+        { label: 'Messages', path: '/messages', icon: MessageSquare, badge: "9+" },
+        { label: 'Notifications', path: '/notifications', icon: Heart },
+        { label: 'Create', path: '/create', icon: PlusSquare },
     ]
 
     return (
@@ -63,55 +54,75 @@ export default function Sidebar() {
             <motion.aside
                 layout
                 initial={false}
-                animate={{ width: isCollapsed ? 80 : 256 }}
-                transition={{ type: "spring", stiffness: 200, damping: 25 }}
-                className="sticky top-0 h-screen flex flex-col py-8 z-[100] border-r bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800"
+                animate={{ width: isCollapsed ? 88 : 260 }}
+                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                className="sticky top-0 h-screen flex flex-col py-6 z-[100] border-r bg-white dark:bg-[#080808] border-zinc-100 dark:border-white/[0.06]"
             >
-                {/* 1. LOGO */}
-                <div className="px-6 mb-10 h-10 flex items-center">
+                {/* 1. BRANDING */}
+                <div className="px-7 mb-12 flex items-center overflow-hidden">
                     <AnimatePresence mode="wait">
                         {!isCollapsed ? (
-                            <motion.h1
-                                key="logo"
-                                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                                className="text-xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100 italic"
+                            <motion.div
+                                key="logo-full"
+                                initial={{ opacity: 0, x: -10 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, x: -10 }}
+                                className="flex items-center gap-2"
                             >
-                                Zynon
-                            </motion.h1>
+                                <div className="w-8 h-8 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20">
+                                    <span className="text-white font-black text-xl italic">Z</span>
+                                </div>
+                                <h1 className="text-xl font-black tracking-tighter italic dark:text-white">
+                                    ZYNON
+                                </h1>
+                            </motion.div>
                         ) : (
-                            <motion.div key="dot" initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="w-5 h-5 bg-zinc-900 dark:bg-zinc-100 rounded-full mx-auto" />
+                            <motion.div 
+                                key="logo-dot" 
+                                initial={{ scale: 0.5, opacity: 0 }} 
+                                animate={{ scale: 1, opacity: 1 }} 
+                                className="w-10 h-10 bg-zinc-100 dark:bg-white/5 rounded-2xl flex items-center justify-center mx-auto border border-zinc-200 dark:border-white/10"
+                            >
+                                <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
+                            </motion.div>
                         )}
                     </AnimatePresence>
                 </div>
 
-                {/* 2. NAVIGATION */}
-                <nav className="flex-1 px-3 space-y-1.5">
+                {/* 2. MAIN NAVIGATION */}
+                <nav className="flex-1 px-4 space-y-2">
                     {navItems.map((item) => {
                         const isActive = pathname === item.path;
+                        const Icon = item.icon;
                         return (
                             <Link
                                 key={item.label}
                                 href={item.path}
                                 onClick={item.onClick}
-                                className={`group relative flex items-center rounded-xl transition-colors duration-500
-                                    ${isCollapsed ? 'justify-center w-12 h-12 mx-auto' : 'px-3 py-2.5 gap-4 w-full'}
-                                    ${isActive ? 'text-zinc-900 dark:text-zinc-100' : 'text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200'}`}
+                                className={`group relative flex items-center rounded-2xl transition-all duration-300
+                                    ${isCollapsed ? 'justify-center w-14 h-14 mx-auto' : 'px-4 py-3.5 gap-4 w-full'}
+                                    ${isActive ? 'text-blue-500' : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100'}`}
                             >
                                 {isActive && (
                                     <motion.div
-                                        layoutId="sidebar-active-pill"
-                                        className="absolute inset-0 bg-zinc-100/80 dark:bg-zinc-900/80 rounded-xl -z-10"
-                                        transition={{ type: "spring", stiffness: 180, damping: 22 }}
+                                        layoutId="sidebar-glow"
+                                        className="absolute inset-0 bg-blue-500/[0.04] dark:bg-white/[0.03] border border-blue-500/10 dark:border-white/10 rounded-2xl -z-10 shadow-[0_0_20px_rgba(59,130,246,0.05)]"
                                     />
                                 )}
 
-                                <div className="relative flex-shrink-0">
-                                    {item.icon}
-                                    {item.badge && <span className="absolute -top-1 -right-1 bg-zinc-900 dark:bg-zinc-100 w-1.5 h-1.5 rounded-full" />}
+                                <div className="relative">
+                                    <Icon size={22} strokeWidth={isActive ? 2.5 : 2} />
+                                    {item.badge && (
+                                        <span className="absolute -top-1 -right-1 bg-red-500 w-2 h-2 rounded-full border-2 border-white dark:border-[#080808]" />
+                                    )}
                                 </div>
 
                                 {!isCollapsed && (
-                                    <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-[14px] font-medium">
+                                    <motion.span 
+                                        initial={{ opacity: 0 }} 
+                                        animate={{ opacity: 1 }} 
+                                        className={`text-sm font-bold tracking-tight ${isActive ? 'italic' : ''}`}
+                                    >
                                         {item.label}
                                     </motion.span>
                                 )}
@@ -120,16 +131,47 @@ export default function Sidebar() {
                     })}
                 </nav>
 
-                {/* 3. COLLAPSE TOGGLE */}
-                <div className="px-3 mt-auto">
+                {/* 3. FOOTER ACTIONS */}
+                <div className="px-4 mt-auto space-y-2">
+                    {/* PROFILE LINK */}
+                    <Link
+                        href="/profile"
+                        className={`group flex items-center rounded-2xl transition-all duration-300
+                            ${isCollapsed ? 'justify-center w-14 h-14 mx-auto' : 'px-4 py-3 gap-4 w-full'}
+                            ${pathname === '/profile' ? 'text-blue-500' : 'text-zinc-500'}`}
+                    >
+                        <div className={`w-7 h-7 rounded-full overflow-hidden ring-2 transition-all duration-300 ${pathname === '/profile' ? 'ring-blue-500 shadow-lg shadow-blue-500/20' : 'ring-zinc-200 dark:ring-white/10'}`}>
+                            <img
+                                src="https://images.unsplash.com/photo-1614850523296-d8c1af93d400?auto=format&fit=crop&w=100&q=80"
+                                className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500"
+                                alt="Profile"
+                            />
+                        </div>
+                        {!isCollapsed && <span className="text-sm font-bold tracking-tight">Profile</span>}
+                    </Link>
+
+                    {/* LOGOUT */}
+                    <button
+                        onClick={() => setShowLogoutConfirm(true)}
+                        className={`flex items-center rounded-2xl text-zinc-400 hover:text-red-500 hover:bg-red-500/5 transition-all duration-300
+                            ${isCollapsed ? 'justify-center w-14 h-14 mx-auto' : 'px-4 py-3.5 gap-4 w-full'}`}
+                    >
+                        <LogOut size={22} />
+                        {!isCollapsed && <span className="text-sm font-bold tracking-tight">Logout</span>}
+                    </button>
+
+                    <div className="h-px bg-zinc-100 dark:bg-white/[0.06] my-2" />
+
+                    {/* COLLAPSE TOGGLE */}
                     <button
                         onClick={() => setIsCollapsed(!isCollapsed)}
-                        className="flex items-center gap-4 px-3 py-3 w-full text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
+                        className={`flex items-center gap-4 text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-all
+                            ${isCollapsed ? 'justify-center w-14 h-14 mx-auto' : 'px-4 py-3.5 w-full'}`}
                     >
-                        <motion.div animate={{ rotate: isCollapsed ? 180 : 0 }} transition={{ duration: 0.4 }}>
-                            <MenuIcon />
+                        <motion.div animate={{ rotate: isCollapsed ? 180 : 0 }}>
+                            {isCollapsed ? <Menu size={20} /> : <ChevronLeft size={20} />}
                         </motion.div>
-                        {!isCollapsed && <span className="text-[14px] font-medium">Collapse</span>}
+                        {!isCollapsed && <span className="text-[11px] font-black uppercase tracking-widest opacity-60">Collapse</span>}
                     </button>
                 </div>
             </motion.aside>
@@ -138,27 +180,44 @@ export default function Sidebar() {
             <AnimatePresence>
                 {showLogoutConfirm && (
                     <motion.div
-                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                        className="fixed inset-0 z-[120] flex items-center justify-center bg-black/30 backdrop-blur-[2px] p-4"
+                        initial={{ opacity: 0 }} 
+                        animate={{ opacity: 1 }} 
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-md p-4"
                     >
                         <motion.div
-                            initial={{ scale: 0.98, opacity: 0, y: 10 }}
+                            initial={{ scale: 0.9, opacity: 0, y: 20 }}
                             animate={{ scale: 1, opacity: 1, y: 0 }}
-                            exit={{ scale: 0.98, opacity: 0, y: 10 }}
-                            className="bg-white dark:bg-zinc-950 p-8 rounded-[32px] max-w-sm w-full shadow-2xl border border-zinc-100 dark:border-zinc-900 text-center"
+                            exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                            className="bg-white dark:bg-[#0c0c0c] p-8 rounded-[40px] max-w-sm w-full shadow-2xl border border-zinc-100 dark:border-white/5 text-center relative overflow-hidden"
                         >
-                            <h3 className="text-lg font-bold mb-1">Sign Out?</h3>
-                            <p className="text-zinc-400 text-sm mb-8">Take a break from the universe.</p>
+                            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-red-500 to-transparent opacity-50" />
+                            
+                            <div className="w-16 h-16 bg-red-500/10 rounded-3xl flex items-center justify-center mx-auto mb-6">
+                                <Shield className="text-red-500" size={28} />
+                            </div>
 
-                            <div className="flex flex-col gap-2">
-                                <button onClick={() => handleLogout(false)} className="w-full py-4 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-950 rounded-2xl font-bold active:scale-[0.97] transition-all">
-                                    Logout
+                            <h3 className="text-xl font-black tracking-tight italic dark:text-white uppercase">Secure Sign Out</h3>
+                            <p className="text-zinc-500 text-sm mt-2 mb-8 font-medium px-4">Are you sure you want to disconnect from the Zynon network?</p>
+
+                            <div className="space-y-3">
+                                <button 
+                                    onClick={() => handleLogout(false)} 
+                                    className="w-full py-4 bg-zinc-900 dark:bg-white dark:text-black text-white rounded-2xl font-black text-xs uppercase tracking-widest active:scale-[0.97] transition-all hover:shadow-xl dark:hover:shadow-white/5"
+                                >
+                                    End Session
                                 </button>
-                                <button onClick={() => handleLogout(true)} className="w-full py-4 bg-red-50 dark:bg-red-950/20 text-red-600 dark:text-red-400 rounded-2xl font-semibold text-sm active:scale-[0.97] transition-all">
-                                    Logout from all devices
+                                <button 
+                                    onClick={() => handleLogout(true)} 
+                                    className="w-full py-3 text-red-500 font-bold text-xs uppercase tracking-tighter opacity-70 hover:opacity-100 transition-opacity"
+                                >
+                                    Sign out all devices
                                 </button>
-                                <button onClick={() => setShowLogoutConfirm(false)} className="w-full py-3 text-zinc-400 font-medium text-sm">
-                                    Stay here
+                                <button 
+                                    onClick={() => setShowLogoutConfirm(false)} 
+                                    className="w-full py-3 text-zinc-400 font-bold text-xs uppercase tracking-widest"
+                                >
+                                    Cancel
                                 </button>
                             </div>
                         </motion.div>
@@ -168,14 +227,3 @@ export default function Sidebar() {
         </>
     )
 }
-
-/* --- ICONS (Minimalist Stroke) --- */
-const HomeIcon = () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg>
-const ReelsIcon = () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><rect x="2" y="2" width="20" height="20" rx="5" ry="5" /><path d="M10 8l6 4-6 4V8z" /></svg>
-const MessagesIcon = () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 1 1-7.6-11.7 8.38 8.38 0 0 1 3.8.9L21 3z" /></svg>
-const ExploreIcon = () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="12" r="10" /><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" /></svg>
-const MenuIcon = () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="18" x2="21" y2="18" /></svg>
-const SearchIcon = () => <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" /></svg>
-const HeartIcon = () => <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" /></svg>
-const PlusIcon = () => <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2" /><line x1="12" y1="8" x2="12" y2="16" /><line x1="8" y1="12" x2="16" y2="12" /></svg>
-const LogoutIcon = () => <svg width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></svg>
