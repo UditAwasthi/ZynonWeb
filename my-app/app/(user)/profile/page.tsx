@@ -10,7 +10,6 @@ import {
 } from "lucide-react"
 
 import { setCached } from "@/lib/api"
-import { profile } from 'console'
 
 const API_BASE = "https://zynon.onrender.com/api"
 
@@ -24,13 +23,74 @@ export default function ProfilePage() {
     const [activeTab, setActiveTab] = useState("Posts")
     const [imageToCrop, setImageToCrop] = useState<string | null>(null)
 
-    // MODAL STATE
     const [modalConfig, setModalConfig] = useState<{ type: 'followers' | 'following', isOpen: boolean } | null>(null)
 
     const token = typeof window !== "undefined" ? localStorage.getItem("accessToken") : null
-    const previewUrlRef = useRef<string | null>(null);
 
-    // --- STALE-WHILE-REVALIDATE FETCH LOGIC ---
+    // --- PHOTO LOGIC ---
+
+    const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files.length > 0) {
+            const reader = new FileReader()
+            reader.addEventListener('load', () => setImageToCrop(reader.result as string))
+            reader.readAsDataURL(e.target.files[0])
+            setOpenMenu(false)
+        }
+    }
+
+    const uploadPhoto = async (file: File) => {
+        const preview = URL.createObjectURL(file)
+        // Optimistic Update
+        setProfile((prev: any) => ({ ...prev, profilePicture: preview }))
+        
+        try {
+            setUploading(true)
+            const formData = new FormData()
+            formData.append("profilePicture", file)
+            
+            const res = await fetch(`${API_BASE}/profile/photo`, {
+                method: "PATCH",
+                headers: { Authorization: `Bearer ${token}` },
+                body: formData
+            })
+            
+            const data = await res.json()
+            if (!res.ok) throw new Error(data.message)
+            
+            // Sync with server URL + cache buster
+            setProfile((prev: any) => ({
+                ...prev,
+                profilePicture: data.data.profilePicture + "?v=" + Date.now()
+            }))
+        } catch (err) {
+            console.error("Upload failed", err)
+            // Revert on error if possible or show toast
+        } finally {
+            setUploading(false)
+            URL.revokeObjectURL(preview)
+        }
+    }
+
+    const removePhoto = async () => {
+        try {
+            setUploading(true)
+            const res = await fetch(`${API_BASE}/profile/photo`, {
+                method: "DELETE",
+                headers: { Authorization: `Bearer ${token}` }
+            })
+            if (!res.ok) throw new Error("Delete failed")
+            
+            setProfile((prev: any) => ({ ...prev, profilePicture: null }))
+            setOpenMenu(false)
+            setConfirmRemove(false)
+        } catch (err) {
+            console.error(err)
+        } finally {
+            setUploading(false)
+        }
+    }
+
+    // --- SWR FETCH LOGIC ---
     useEffect(() => {
         const syncProfile = async () => {
             const cacheKey = `${API_BASE}/profile/me`
@@ -39,40 +99,31 @@ export default function ProfilePage() {
             if (cached) {
                 try {
                     const parsed = JSON.parse(cached)
-                    const existingData = parsed?.data?.data
-
+                    const existingData = parsed?.data?.data || parsed?.data
                     if (existingData) {
                         setProfile(existingData)
                         setLoading(false)
                     }
-                } catch (e) {
-                    console.error("Cache read error", e)
-                }
+                } catch (e) { console.error("Cache read error", e) }
             }
 
             try {
                 const res = await fetch(cacheKey, {
                     headers: { Authorization: `Bearer ${token}` }
                 })
-
                 const fresh = await res.json()
-
                 if (res.ok && fresh.data) {
                     setProfile(fresh.data)
                     setCached(cacheKey, { headers: { Authorization: `Bearer ${token}` } }, fresh)
                 }
-
             } catch (err) {
                 console.error("Background sync failed", err)
             } finally {
                 setLoading(false)
             }
         }
-
         if (token) syncProfile();
     }, [token]);
-
-    // ... (onFileChange, uploadPhoto, removePhoto functions remain the same)
 
     if (loading) return <LoadingSkeleton />
     if (!profile) return <ErrorState />
@@ -82,12 +133,27 @@ export default function ProfilePage() {
 
     return (
         <div className="min-h-screen bg-white dark:bg-[#080808] text-zinc-900 dark:text-zinc-100 selection:bg-blue-500/30">
-            {/* ... Navigation Bar Code ... */}
+            {/* NAV BAR */}
+            <nav className="sticky top-0 z-50 border-b border-zinc-100 dark:border-white/[0.06] bg-white/70 dark:bg-[#080808]/70 backdrop-blur-xl">
+                <div className="max-w-4xl mx-auto px-6 h-16 flex items-center justify-between">
+                    <motion.span initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className="font-black italic uppercase tracking-tighter text-lg">
+                        {username}
+                    </motion.span>
+                    <motion.button whileHover={{ rotate: 90 }} whileTap={{ scale: 0.9 }} className="p-2.5 rounded-xl bg-zinc-100 dark:bg-white/5 border border-transparent dark:border-white/10">
+                        <Settings size={20} strokeWidth={1.5} />
+                    </motion.button>
+                </div>
+            </nav>
 
             <main className="max-w-4xl mx-auto pt-10 pb-24 px-6">
                 <section className="flex flex-col md:flex-row gap-12 items-center md:items-start mb-16">
                     {/* AVATAR SECTION */}
-                    <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="relative cursor-pointer group" onClick={() => { setConfirmRemove(false); setOpenMenu(true); }}>
+                    <motion.div 
+                        initial={{ opacity: 0, scale: 0.9 }} 
+                        animate={{ opacity: 1, scale: 1 }} 
+                        className="relative cursor-pointer group" 
+                        onClick={() => { setConfirmRemove(false); setOpenMenu(true); }}
+                    >
                         <div className="relative w-36 h-36 md:w-44 md:h-44 rounded-[40px] p-1.5 bg-gradient-to-tr from-blue-500/20 to-emerald-500/20 dark:from-white/10 dark:to-white/5 ring-1 ring-zinc-200 dark:ring-white/10 shadow-2xl transition-all duration-500 group-hover:rotate-2">
                             <div className="w-full h-full rounded-[34px] overflow-hidden bg-white dark:bg-zinc-900 shadow-inner">
                                 <motion.img
@@ -115,17 +181,13 @@ export default function ProfilePage() {
                             </div>
                         </div>
 
-                        {/* CLICKABLE STATS */}
                         <div className="flex justify-center md:justify-start gap-1">
                             <Stat number={profile.postsCount ?? profile.user?.postsCount ?? 0} label="posts" />
                             <div className="w-px h-8 self-center bg-zinc-200 dark:bg-white/10 mx-4 md:mx-6" />
-
                             <div className="cursor-pointer group" onClick={() => setModalConfig({ type: 'followers', isOpen: true })}>
                                 <Stat number={profile.followersCount ?? profile.user?.followersCount ?? 0} label="followers" />
                             </div>
-
                             <div className="w-px h-8 self-center bg-zinc-200 dark:bg-white/10 mx-4 md:mx-6" />
-
                             <div className="cursor-pointer group" onClick={() => setModalConfig({ type: 'following', isOpen: true })}>
                                 <Stat number={profile.followingCount ?? profile.user?.followingCount ?? 0} label="following" />
                             </div>
@@ -137,11 +199,56 @@ export default function ProfilePage() {
                         </div>
                     </motion.div>
                 </section>
-
-                {/* ... TABS Code ... */}
             </main>
 
-            {/* USERS LIST MODAL */}
+            {/* PHOTO ACTION SHEET */}
+            <AnimatePresence>
+                {openMenu && (
+                    <>
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setOpenMenu(false)} className="fixed inset-0 bg-black/80 backdrop-blur-md z-[100]" />
+                        <motion.div initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 200 }} className="fixed bottom-0 left-0 right-0 md:left-1/2 md:right-auto md:-translate-x-1/2 md:w-[450px] bg-white dark:bg-zinc-900 rounded-t-[40px] md:rounded-[40px] md:bottom-6 z-[101] px-8 pb-12 pt-6 shadow-2xl border border-white/10">
+                            <div className="w-12 h-1 bg-zinc-200 dark:bg-white/10 rounded-full mx-auto mb-8" />
+                            {!confirmRemove ? (
+                                <div className="space-y-3">
+                                    <h3 className="text-center font-black text-xl mb-6 tracking-tighter italic uppercase">Identity_Settings</h3>
+                                    <label className="flex items-center justify-center gap-3 w-full py-5 bg-blue-600 text-white rounded-[24px] text-xs font-black uppercase tracking-widest cursor-pointer active:scale-95 transition-transform shadow-lg shadow-blue-500/20">
+                                        <Camera size={18} /> Upload New
+                                        <input type="file" className="hidden" accept="image/*" onChange={onFileChange} />
+                                    </label>
+                                    <button onClick={() => setConfirmRemove(true)} className="w-full py-5 text-red-500 text-xs font-black uppercase tracking-widest rounded-[24px] border border-red-500/20 bg-red-500/5 active:scale-95 transition-transform">Remove Photo</button>
+                                    <button onClick={() => setOpenMenu(false)} className="w-full py-5 text-zinc-500 text-xs font-bold uppercase tracking-widest">Abort</button>
+                                </div>
+                            ) : (
+                                <div className="text-center">
+                                    <div className="w-16 h-16 bg-red-500/10 text-red-500 rounded-3xl flex items-center justify-center mx-auto mb-6"><Trash2 size={28} /></div>
+                                    <h3 className="font-black text-xl mb-2 italic uppercase tracking-tighter">Confirm_Reset?</h3>
+                                    <p className="text-zinc-500 text-[10px] font-bold uppercase tracking-widest mb-10">This will revert your avatar to default.</p>
+                                    <div className="flex gap-4">
+                                        <button onClick={removePhoto} className="flex-1 py-5 bg-red-500 text-white font-black rounded-3xl text-xs uppercase tracking-widest active:scale-95 transition-transform">Delete</button>
+                                        <button onClick={() => setConfirmRemove(false)} className="flex-1 py-5 bg-zinc-100 dark:bg-white/5 font-black rounded-3xl text-xs uppercase tracking-widest active:scale-95 transition-transform">Cancel</button>
+                                    </div>
+                                </div>
+                            )}
+                        </motion.div>
+                    </>
+                )}
+            </AnimatePresence>
+
+            {/* CROPPER OVERLAY */}
+            <AnimatePresence>
+                {imageToCrop && (
+                    <ImageCropper
+                        image={imageToCrop}
+                        onCancel={() => setImageToCrop(null)}
+                        onComplete={(croppedFile: File) => {
+                            setImageToCrop(null)
+                            uploadPhoto(croppedFile)
+                        }}
+                    />
+                )}
+            </AnimatePresence>
+
+            {/* FOLLOWERS MODAL */}
             <AnimatePresence>
                 {modalConfig?.isOpen && (
                     <UsersListModal
@@ -151,13 +258,77 @@ export default function ProfilePage() {
                     />
                 )}
             </AnimatePresence>
-
-            {/* ... CROPPER and PHOTO MENU Code ... */}
         </div>
     )
 }
 
-// --- NEW USERS LIST MODAL COMPONENT ---
+// --- CROPPING COMPONENT ---
+
+function ImageCropper({ image, onCancel, onComplete }: any) {
+    const [crop, setCrop] = useState({ x: 0, y: 0 })
+    const [zoom, setZoom] = useState(1)
+    const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null)
+
+    const onCropComplete = useCallback((_: any, pixels: any) => {
+        setCroppedAreaPixels(pixels)
+    }, [])
+
+    const createCroppedImage = async () => {
+        const canvas = document.createElement('canvas')
+        const img = new Image()
+        img.src = image
+        await new Promise((res) => (img.onload = res))
+
+        canvas.width = croppedAreaPixels.width
+        canvas.height = croppedAreaPixels.height
+        const ctx = canvas.getContext('2d')
+
+        ctx?.drawImage(
+            img,
+            croppedAreaPixels.x, croppedAreaPixels.y,
+            croppedAreaPixels.width, croppedAreaPixels.height,
+            0, 0,
+            croppedAreaPixels.width, croppedAreaPixels.height
+        )
+
+        canvas.toBlob((blob) => {
+            if (blob) {
+                const file = new File([blob], "avatar.jpg", { type: "image/jpeg" })
+                onComplete(file)
+            }
+        }, 'image/jpeg', 0.9)
+    }
+
+    return (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-[300] bg-black flex flex-col">
+            <div className="relative flex-1">
+                <Cropper
+                    image={image}
+                    crop={crop}
+                    zoom={zoom}
+                    aspect={1}
+                    onCropChange={setCrop}
+                    onCropComplete={onCropComplete}
+                    onZoomChange={setZoom}
+                    cropShape="round"
+                    showGrid={false}
+                />
+            </div>
+            <div className="bg-[#080808] p-8 pb-12 flex items-center justify-between gap-6 border-t border-white/5">
+                <button onClick={onCancel} className="text-zinc-500 font-black text-[10px] uppercase tracking-[0.3em]">Cancel</button>
+                <input
+                    type="range" value={zoom} min={1} max={3} step={0.1}
+                    onChange={(e) => setZoom(Number(e.target.value))}
+                    className="flex-1 h-1 bg-zinc-800 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                />
+                <button onClick={createCroppedImage} className="w-14 h-14 bg-white text-black rounded-full flex items-center justify-center shadow-xl active:scale-90 transition-transform">
+                    <Check size={28} />
+                </button>
+            </div>
+        </motion.div>
+    )
+}
+
 
 function UsersListModal({ userId, type, onClose }: { userId: string, type: 'followers' | 'following', onClose: () => void }) {
     const [users, setUsers] = useState<any[]>([])
