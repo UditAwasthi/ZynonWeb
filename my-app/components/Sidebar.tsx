@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -9,6 +9,7 @@ import {
     MessageSquare, Heart, PlusSquare, 
     LogOut, Menu, ChevronLeft, Shield 
 } from 'lucide-react'
+import { cachedApiFetch } from '@/lib/api'
 
 interface NavItem {
     label: string;
@@ -18,11 +19,36 @@ interface NavItem {
     onClick?: () => void;
 }
 
+interface ProfileResponse {
+    data: {
+        profilePicture: string;
+    };
+}
+
 export default function Sidebar() {
     const pathname = usePathname()
     const router = useRouter()
     const [isCollapsed, setIsCollapsed] = useState(false)
     const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
+    const [avatar, setAvatar] = useState<string | null>(null)
+
+    useEffect(() => {
+        const loadAvatar = async () => {
+            const token = localStorage.getItem("accessToken")
+            if (!token) return
+            try {
+                const { data } = await cachedApiFetch(
+                    "https://zynon.onrender.com/api/profile/me",
+                    { headers: { Authorization: `Bearer ${token}` } }
+                )
+                const typedData = data as ProfileResponse
+                setAvatar(typedData.data.profilePicture)
+            } catch (err) {
+                console.error("failed to load avatar", err)
+            }
+        }
+        loadAvatar()
+    }, [])
 
     const handleLogout = async (allDevices = false) => {
         const endpoint = allDevices ? "/api/auth/logout-all" : "/api/auth/logout";
@@ -36,6 +62,10 @@ export default function Sidebar() {
             console.error("logout failed", err)
         }
         localStorage.removeItem("accessToken")
+        // clear any cached API responses so stale data doesn't linger
+        try {
+            localStorage.clear()
+        } catch {}
         router.push("/login")
     }
 
@@ -142,7 +172,11 @@ export default function Sidebar() {
                     >
                         <div className={`w-7 h-7 rounded-full overflow-hidden ring-2 transition-all duration-300 ${pathname === '/profile' ? 'ring-blue-500 shadow-lg shadow-blue-500/20' : 'ring-zinc-200 dark:ring-white/10'}`}>
                             <img
-                                src="https://images.unsplash.com/photo-1614850523296-d8c1af93d400?auto=format&fit=crop&w=100&q=80"
+                                src={
+                                    avatar ||
+                                    avatar ||
+                                    "https://images.unsplash.com/photo-1614850523296-d8c1af93d400?auto=format&fit=crop&w=100&q=80"
+                                }
                                 className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500"
                                 alt="Profile"
                             />

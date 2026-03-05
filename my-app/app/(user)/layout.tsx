@@ -4,17 +4,19 @@ import { useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import Sidebar from "../../components/Sidebar";
+import { useAuth } from "../providers/AuthProvider";
 
 export default function UserLayout({ children }: { children: React.ReactNode }) {
     const router = useRouter();
     const pathname = usePathname();
+    const { authState } = useAuth();
 
     useEffect(() => {
-        const token = localStorage.getItem("accessToken");
-        if (!token) {
+        // redirect when auth is confirmed as unauthenticated
+        if (authState === "unauthenticated") {
             router.replace("/login");
         }
-    }, [router]);
+    }, [authState, router]);
 
     return (
         <div className="flex min-h-screen bg-white dark:bg-[#020203] overflow-hidden text-zinc-900 dark:text-zinc-100">

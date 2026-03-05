@@ -1,12 +1,15 @@
-// app/(auth)/login/page.tsx
 "use client"
 
 import { useState } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import { useAuth } from "@/app/providers/AuthProvider"
 
 export default function LoginPage() {
+
   const router = useRouter()
+
+  const { setToken } = useAuth()   // ✅ hook at top level
 
   const [focused, setFocused] = useState<string | null>(null)
   const [identifier, setIdentifier] = useState("")
@@ -16,22 +19,27 @@ export default function LoginPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
+
     setError("")
     setLoading(true)
 
     try {
-      const res = await fetch("https://zynon.onrender.com/api/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-client-type": "web"
-        },
-        credentials: "include",
-        body: JSON.stringify({
-          identifier,
-          password
-        })
-      })
+
+      const res = await fetch(
+        "https://zynon.onrender.com/api/auth/login",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-client-type": "web"
+          },
+          credentials: "include",
+          body: JSON.stringify({
+            identifier,
+            password
+          })
+        }
+      )
 
       const data = await res.json()
 
@@ -39,8 +47,8 @@ export default function LoginPage() {
         throw new Error(data.message || "Login failed")
       }
 
-      // store access token in memory (or localStorage temporarily for testing)
-      localStorage.setItem("accessToken", data.data.accessToken)
+      // store access token
+      setToken(data.data.accessToken)
 
       router.push("/home")
 
@@ -50,15 +58,14 @@ export default function LoginPage() {
       setLoading(false)
     }
   }
-
   return (
     <div
       className="flex min-h-screen items-center justify-center p-6 transition-all duration-500"
       style={{
-        backgroundColor: '#000',
-        background: `radial-gradient(circle at 80% 20%, rgba(99, 102, 241, 0.15) 0%, transparent 40%),
-                     radial-gradient(circle at 20% 80%, rgba(168, 85, 247, 0.15) 0%, transparent 40%)`,
-        fontFamily: 'SF Pro Display, Inter, system-ui, sans-serif',
+        backgroundColor: "#000",
+        background: `radial-gradient(circle at 80% 20%, rgba(99,102,241,0.15) 0%, transparent 40%),
+                     radial-gradient(circle at 20% 80%, rgba(168,85,247,0.15) 0%, transparent 40%)`,
+        fontFamily: "SF Pro Display, Inter, system-ui, sans-serif"
       }}
     >
       <div className="w-full max-w-[400px] rounded-[38px] border border-white/10 bg-white/[0.03] p-10 shadow-2xl backdrop-blur-[40px] backdrop-saturate-[180%]">
@@ -89,11 +96,11 @@ export default function LoginPage() {
               type="text"
               value={identifier}
               onChange={(e) => setIdentifier(e.target.value)}
-              onFocus={() => setFocused('identifier')}
+              onFocus={() => setFocused("identifier")}
               onBlur={() => setFocused(null)}
-              className={`w-full rounded-[20px] border px-5 py-4 text-sm text-white outline-none transition-all duration-300 ${focused === 'identifier'
-                  ? 'border-white/30 bg-white/10'
-                  : 'border-white/5 bg-white/5'
+              className={`w-full rounded-[20px] border px-5 py-4 text-sm text-white outline-none transition-all duration-300 ${focused === "identifier"
+                  ? "border-white/30 bg-white/10"
+                  : "border-white/5 bg-white/5"
                 }`}
               placeholder="Email address or username"
               required
@@ -105,17 +112,17 @@ export default function LoginPage() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              onFocus={() => setFocused('pass')}
+              onFocus={() => setFocused("pass")}
               onBlur={() => setFocused(null)}
-              className={`w-full rounded-[20px] border px-5 py-4 text-sm text-white outline-none transition-all duration-300 ${focused === 'pass'
-                  ? 'border-white/30 bg-white/10'
-                  : 'border-white/5 bg-white/5'
+              className={`w-full rounded-[20px] border px-5 py-4 text-sm text-white outline-none transition-all duration-300 ${focused === "pass"
+                  ? "border-white/30 bg-white/10"
+                  : "border-white/5 bg-white/5"
                 }`}
               placeholder="Password"
               required
             />
           </div>
-          {/* Forgot Password Link */}
+
           <div className="flex justify-end px-1">
             <Link
               href="/resetPassword"
@@ -124,6 +131,7 @@ export default function LoginPage() {
               Forgot password?
             </Link>
           </div>
+
           {error && (
             <p className="text-sm text-red-400">{error}</p>
           )}
