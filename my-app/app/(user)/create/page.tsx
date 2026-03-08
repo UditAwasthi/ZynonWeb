@@ -1,452 +1,861 @@
 'use client'
 
 import React, { useState, useRef, useCallback } from 'react'
+import toast from "react-hot-toast"
+import { useRouter } from "next/navigation"
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://zynon.onrender.com/api/content'
 
-/* ─── ICONS ─── */
-const UploadIcon = () => (
-    <svg width="64" height="52" viewBox="0 0 96 77" fill="none" stroke="currentColor" strokeWidth="1.2">
-        <path d="M1 10C1 5.02944 5.02944 1 10 1H86C90.9706 1 95 5.02944 95 10V67C95 71.9706 90.9706 76 86 76H10C5.02944 76 1 71.9706 1 67V10Z" />
-        <path d="M30 30L48 12L66 30" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-        <path d="M48 12V50" strokeWidth="2.5" strokeLinecap="round" />
-        <path d="M25 60H71" strokeWidth="2.5" strokeLinecap="round" />
-    </svg>
-)
-
-const CloseIcon = () => (
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-        <path d="M1 1L13 13M13 1L1 13" />
-    </svg>
-)
-
-const ChevronLeft = () => (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M15 18l-6-6 6-6" />
-    </svg>
-)
-
-const ChevronRight = () => (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M9 18l6-6-6-6" />
-    </svg>
-)
-
-const CheckIcon = () => (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M20 6L9 17l-5-5" />
-    </svg>
-)
-
-const ImageIcon = () => (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="3" y="3" width="18" height="18" rx="2" />
-        <circle cx="8.5" cy="8.5" r="1.5" />
-        <path d="M21 15l-5-5L5 21" />
-    </svg>
-)
-
-const VideoIcon = () => (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <polygon points="23 7 16 12 23 17 23 7" />
-        <rect x="1" y="5" width="15" height="14" rx="2" />
-    </svg>
-)
-
-const GlobeIcon = () => (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="10" />
-        <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-    </svg>
-)
-
-const UsersIcon = () => (
-    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-        <circle cx="9" cy="7" r="4" />
-        <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
-    </svg>
-)
-
-/* ─── STEPS ─── */
-const STEPS = { UPLOAD: 'upload', CAPTION: 'caption', SUCCESS: 'success' }
-
-/* ─── MAIN COMPONENT ─── */
 export default function CreatePage() {
-    const [step, setStep] = useState(STEPS.UPLOAD)
-    const [files, setFiles] = useState<Array<{ file: File; preview: string; type: 'image' | 'video' }>>([])
-    const [activeIdx, setActiveIdx] = useState(0)
-    const [caption, setCaption] = useState('')
-    const [visibility, setVisibility] = useState('public')
-    const [dragActive, setDragActive] = useState(false)
+
+    const router = useRouter()
+
+    const [files, setFiles] = useState<any[]>([])
+    const [caption, setCaption] = useState("")
+    const [visibility, setVisibility] = useState("public")
     const [loading, setLoading] = useState(false)
-    const [error, setError] = useState('')
+    const [uploadProgress, setUploadProgress] = useState<Record<number, number>>({})
+    const [isDragging, setIsDragging] = useState(false)
+    const [selectedIndex, setSelectedIndex] = useState<number | null>(null)
+
     const fileInputRef = useRef<HTMLInputElement>(null)
 
-    /* ─── FILE HANDLING ─── */
+    /* FILE HANDLING */
+
     const addFiles = useCallback((incoming: FileList) => {
-        setError('')
-        const valid = Array.from(incoming).filter((f): f is File => {
-            if (!f.type.startsWith('image/') && !f.type.startsWith('video/')) return false
-            if (f.size > 20 * 1024 * 1024) { setError(`"${f.name}" exceeds 20 MB`); return false }
+        const valid = Array.from(incoming).filter(f => {
+            if (!f.type.startsWith("image/") && !f.type.startsWith("video/")) return false
+            if (f.size > 20 * 1024 * 1024) {
+                toast.error(`${f.name} exceeds 20MB`)
+                return false
+            }
             return true
         })
 
-        setFiles(prev => {
-            const combined = [...prev, ...valid.map(f => {
-                const type = f.type.startsWith('image/') ? 'image' : 'video'
-                return {
-                    file: f,
-                    preview: URL.createObjectURL(f),
-                    type: type as 'image' | 'video'
-                }
-            })]
-            if (combined.length > 10) {
-                setError('Maximum 10 files allowed')
-                return combined.slice(0, 10)
-            }
-            return combined
-        })
+        setFiles(prev => [
+            ...prev,
+            ...valid.map(f => ({
+                file: f,
+                preview: URL.createObjectURL(f),
+                type: f.type.startsWith("image/") ? "image" : "video"
+            }))
+        ])
     }, [])
 
-    const removeFile = (idx: number) => {
+    const handleDrop = useCallback((e: React.DragEvent) => {
+        e.preventDefault()
+        setIsDragging(false)
+        if (e.dataTransfer.files) addFiles(e.dataTransfer.files)
+    }, [addFiles])
+
+    const removeFile = (index: number) => {
         setFiles(prev => {
-            URL.revokeObjectURL(prev[idx].preview)
-            const next = prev.filter((_, i) => i !== idx)
-            setActiveIdx(i => Math.min(i, Math.max(0, next.length - 1)))
-            return next
+            URL.revokeObjectURL(prev[index].preview)
+            return prev.filter((_, i) => i !== index)
+        })
+        if (selectedIndex === index) setSelectedIndex(null)
+    }
+
+    /* CLOUDINARY UPLOAD */
+
+    const uploadToCloudinary = async (file: File, index: number) => {
+        const token = localStorage.getItem("accessToken")
+
+        const sigRes = await fetch(`${API_BASE}/media/signature`, {
+            headers: { Authorization: `Bearer ${token}` }
+        })
+
+        const sig = await sigRes.json()
+        const formData = new FormData()
+
+        formData.append("file", file)
+        formData.append("api_key", sig.apiKey)
+        formData.append("timestamp", sig.timestamp)
+        formData.append("signature", sig.signature)
+        formData.append("folder", "zynon/posts")
+
+        return new Promise<any>((resolve, reject) => {
+            const xhr = new XMLHttpRequest()
+
+            xhr.upload.addEventListener("progress", (e) => {
+                if (!e.lengthComputable) return
+                const percent = Math.round((e.loaded * 100) / e.total)
+                setUploadProgress(prev => ({ ...prev, [index]: percent }))
+            })
+
+            xhr.onreadystatechange = () => {
+                if (xhr.readyState === 4) {
+                    const data = JSON.parse(xhr.responseText)
+                    if (xhr.status === 200) resolve(data)
+                    else reject(data)
+                }
+            }
+
+            xhr.open("POST", `https://api.cloudinary.com/v1_1/${sig.cloudName}/auto/upload`)
+            xhr.send(formData)
         })
     }
 
-    const onDrop = (e: React.DragEvent<HTMLDivElement>) => {
-        e.preventDefault(); setDragActive(false)
-        addFiles(e.dataTransfer.files)
-    }
+    /* SUBMIT */
 
-    /* ─── SUBMIT ─── */
     const handleSubmit = async () => {
         if (!files.length) return
-        setLoading(true); setError('')
+
+        setLoading(true)
+        toast.loading("Uploading post...", { id: "upload" })
 
         try {
-            const formData = new FormData()
-            files.forEach(f => formData.append('media', f.file))
-            formData.append('caption', caption)
-            formData.append('visibility', visibility)
+            const uploads = files.map((f, i) => uploadToCloudinary(f.file, i))
+            const results = await Promise.all(uploads)
+
+            const media = results.map(r => ({
+                url: r.secure_url,
+                publicId: r.public_id,
+                width: r.width,
+                height: r.height,
+                duration: r.duration || null,
+                type: r.resource_type === "video" ? "video" : "image"
+            }))
 
             const token = localStorage.getItem("accessToken")
 
             const res = await fetch(`${API_BASE}/posts`, {
                 method: "POST",
                 headers: {
+                    "Content-Type": "application/json",
                     Authorization: `Bearer ${token}`
                 },
-                body: formData
+                body: JSON.stringify({ caption, visibility, media })
             })
 
             const data = await res.json()
-            if (!res.ok) throw new Error(data.message || 'Upload failed')
-            setStep(STEPS.SUCCESS)
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'An error occurred')
+            if (!res.ok) throw new Error(data.message)
+
+            toast.success("Post uploaded successfully!", { id: "upload" })
+            router.push("/profile")
+
+        } catch (err: any) {
+            toast.error(err.message || "Upload failed", { id: "upload" })
         } finally {
             setLoading(false)
         }
     }
 
-    /* ─── RESET ─── */
+    /* RESET */
+
     const reset = () => {
         files.forEach(f => URL.revokeObjectURL(f.preview))
-        setFiles([]); setCaption(''); setVisibility('public')
-        setActiveIdx(0); setError(''); setStep(STEPS.UPLOAD)
+        setFiles([])
+        setCaption("")
+        setVisibility("public")
+        setUploadProgress({})
+        setSelectedIndex(null)
     }
 
-    /* ─── RENDER ─── */
-    return (
-        <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex items-center justify-center p-4"
-            style={{ fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+    const mainPreview = selectedIndex !== null ? files[selectedIndex] : files[0]
 
+    /* UI */
+
+    return (
+        <>
             <style>{`
-                @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&display=swap');
-                @keyframes fadeUp { from { opacity:0; transform:translateY(12px) } to { opacity:1; transform:translateY(0) } }
-                @keyframes scaleIn { from { opacity:0; transform:scale(.92) } to { opacity:1; transform:scale(1) } }
-                @keyframes spin { to { transform: rotate(360deg) } }
-                .fade-up { animation: fadeUp .35s cubic-bezier(.22,1,.36,1) both }
-                .scale-in { animation: scaleIn .4s cubic-bezier(.22,1,.36,1) both }
-                .spinner { animation: spin .9s linear infinite }
-                .thumb::-webkit-scrollbar { height:4px }
-                .thumb::-webkit-scrollbar-track { background:transparent }
-                .thumb::-webkit-scrollbar-thumb { background:#d4d4d8; border-radius:99px }
+                @import url('https://fonts.googleapis.com/css2?family=SF+Pro+Display:wght@300;400;500;600&display=swap');
+
+                * { box-sizing: border-box; margin: 0; padding: 0; }
+
+                :root {
+                    --bg: #f2f2f7;
+                    --surface: rgba(255,255,255,0.72);
+                    --surface-solid: #ffffff;
+                    --border: rgba(0,0,0,0.08);
+                    --border-strong: rgba(0,0,0,0.14);
+                    --text-primary: #1c1c1e;
+                    --text-secondary: #6e6e73;
+                    --text-tertiary: #aeaeb2;
+                    --accent: #0071e3;
+                    --accent-hover: #0077ed;
+                    --accent-light: rgba(0,113,227,0.10);
+                    --danger: #ff3b30;
+                    --success: #34c759;
+                    --radius-sm: 10px;
+                    --radius-md: 16px;
+                    --radius-lg: 20px;
+                    --radius-xl: 28px;
+                    --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+                    --shadow-md: 0 4px 20px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.04);
+                    --shadow-lg: 0 12px 40px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06);
+                    --font: -apple-system, 'SF Pro Display', BlinkMacSystemFont, system-ui, sans-serif;
+                    --transition: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+                }
+
+                body {
+                    font-family: var(--font);
+                    background: var(--bg);
+                    color: var(--text-primary);
+                    -webkit-font-smoothing: antialiased;
+                }
+
+                .page {
+                    min-height: 100vh;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    padding: 24px 16px;
+                    background: var(--bg);
+                }
+
+                .card {
+                    width: 100%;
+                    max-width: 520px;
+                    background: var(--surface-solid);
+                    border-radius: var(--radius-xl);
+                    box-shadow: var(--shadow-lg);
+                    overflow: hidden;
+                    animation: slideUp 0.5s var(--transition) both;
+                }
+
+                @keyframes slideUp {
+                    from { opacity: 0; transform: translateY(20px); }
+                    to   { opacity: 1; transform: translateY(0); }
+                }
+
+                /* HEADER */
+                .header {
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    padding: 18px 20px 0;
+                }
+
+                .header-left {
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                }
+
+                .btn-ghost {
+                    background: none;
+                    border: none;
+                    cursor: pointer;
+                    color: var(--text-secondary);
+                    font-size: 15px;
+                    font-family: var(--font);
+                    padding: 4px 0;
+                    transition: color 0.15s;
+                    -webkit-font-smoothing: antialiased;
+                }
+
+                .btn-ghost:hover { color: var(--text-primary); }
+
+                .header-title {
+                    font-size: 17px;
+                    font-weight: 600;
+                    letter-spacing: -0.3px;
+                    color: var(--text-primary);
+                }
+
+                .btn-share {
+                    background: var(--accent);
+                    color: #fff;
+                    border: none;
+                    border-radius: 20px;
+                    padding: 7px 18px;
+                    font-size: 15px;
+                    font-weight: 600;
+                    font-family: var(--font);
+                    cursor: pointer;
+                    transition: background 0.15s, transform 0.1s, opacity 0.15s;
+                    -webkit-font-smoothing: antialiased;
+                    letter-spacing: -0.2px;
+                }
+
+                .btn-share:hover:not(:disabled) { background: var(--accent-hover); transform: scale(1.02); }
+                .btn-share:active:not(:disabled) { transform: scale(0.98); }
+                .btn-share:disabled { opacity: 0.5; cursor: not-allowed; }
+
+                .divider {
+                    height: 1px;
+                    background: var(--border);
+                    margin: 16px 0 0;
+                }
+
+                /* BODY */
+                .body { padding: 20px; display: flex; flex-direction: column; gap: 20px; }
+
+                /* DROP ZONE */
+                .drop-zone {
+                    border-radius: var(--radius-lg);
+                    border: 1.5px dashed var(--border-strong);
+                    background: var(--bg);
+                    aspect-ratio: 1 / 1;
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    cursor: pointer;
+                    transition: border-color 0.2s, background 0.2s, transform 0.15s var(--transition);
+                    position: relative;
+                    overflow: hidden;
+                }
+
+                .drop-zone:hover {
+                    border-color: var(--accent);
+                    background: var(--accent-light);
+                    transform: scale(1.005);
+                }
+
+                .drop-zone.dragging {
+                    border-color: var(--accent);
+                    background: var(--accent-light);
+                    transform: scale(1.01);
+                }
+
+                .drop-zone.has-files {
+                    border: none;
+                    background: #000;
+                    cursor: default;
+                }
+
+                .drop-icon {
+                    width: 48px;
+                    height: 48px;
+                    border-radius: 50%;
+                    background: var(--surface-solid);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    margin-bottom: 12px;
+                    box-shadow: var(--shadow-sm);
+                }
+
+                .drop-icon svg { width: 22px; height: 22px; color: var(--accent); }
+
+                .drop-label {
+                    font-size: 15px;
+                    font-weight: 500;
+                    color: var(--text-primary);
+                    margin-bottom: 4px;
+                    letter-spacing: -0.2px;
+                }
+
+                .drop-sub {
+                    font-size: 13px;
+                    color: var(--text-tertiary);
+                    letter-spacing: -0.1px;
+                }
+
+                .preview-img {
+                    width: 100%;
+                    height: 100%;
+                    object-fit: cover;
+                    display: block;
+                }
+
+                .preview-video {
+                    width: 100%;
+                    height: 100%;
+                    object-fit: cover;
+                    display: block;
+                }
+
+                .preview-overlay {
+                    position: absolute;
+                    bottom: 12px;
+                    right: 12px;
+                    display: flex;
+                    gap: 8px;
+                }
+
+                .overlay-btn {
+                    background: rgba(0,0,0,0.5);
+                    backdrop-filter: blur(12px);
+                    -webkit-backdrop-filter: blur(12px);
+                    border: none;
+                    border-radius: 20px;
+                    padding: 6px 12px;
+                    color: #fff;
+                    font-size: 13px;
+                    font-family: var(--font);
+                    font-weight: 500;
+                    cursor: pointer;
+                    transition: background 0.15s;
+                    letter-spacing: -0.1px;
+                }
+
+                .overlay-btn:hover { background: rgba(0,0,0,0.7); }
+
+                /* FILMSTRIP */
+                .filmstrip {
+                    display: flex;
+                    gap: 8px;
+                    overflow-x: auto;
+                    padding-bottom: 2px;
+                    scrollbar-width: none;
+                }
+
+                .filmstrip::-webkit-scrollbar { display: none; }
+
+                .thumb-wrap {
+                    flex-shrink: 0;
+                    position: relative;
+                    width: 72px;
+                    height: 72px;
+                    border-radius: var(--radius-sm);
+                    overflow: hidden;
+                    cursor: pointer;
+                    transition: transform 0.15s var(--transition);
+                }
+
+                .thumb-wrap:hover { transform: scale(1.04); }
+
+                .thumb-wrap.selected {
+                    outline: 2.5px solid var(--accent);
+                    outline-offset: 2px;
+                }
+
+                .thumb-img {
+                    width: 100%;
+                    height: 100%;
+                    object-fit: cover;
+                    display: block;
+                }
+
+                .thumb-remove {
+                    position: absolute;
+                    top: 4px;
+                    right: 4px;
+                    width: 20px;
+                    height: 20px;
+                    border-radius: 50%;
+                    background: rgba(0,0,0,0.55);
+                    backdrop-filter: blur(8px);
+                    border: none;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    cursor: pointer;
+                    opacity: 0;
+                    transition: opacity 0.15s;
+                }
+
+                .thumb-wrap:hover .thumb-remove { opacity: 1; }
+
+                .thumb-add {
+                    flex-shrink: 0;
+                    width: 72px;
+                    height: 72px;
+                    border-radius: var(--radius-sm);
+                    border: 1.5px dashed var(--border-strong);
+                    background: var(--bg);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    cursor: pointer;
+                    transition: border-color 0.15s, background 0.15s;
+                }
+
+                .thumb-add:hover {
+                    border-color: var(--accent);
+                    background: var(--accent-light);
+                }
+
+                .thumb-add svg { width: 18px; height: 18px; color: var(--text-tertiary); }
+                .thumb-add:hover svg { color: var(--accent); }
+
+                /* CAPTION */
+                .caption-wrap {
+                    display: flex;
+                    flex-direction: column;
+                    gap: 8px;
+                }
+
+                .section-label {
+                    font-size: 12px;
+                    font-weight: 600;
+                    text-transform: uppercase;
+                    letter-spacing: 0.6px;
+                    color: var(--text-tertiary);
+                }
+
+                .caption-input {
+                    width: 100%;
+                    min-height: 90px;
+                    resize: none;
+                    border: 1.5px solid var(--border);
+                    border-radius: var(--radius-md);
+                    padding: 13px 14px;
+                    font-size: 15px;
+                    font-family: var(--font);
+                    color: var(--text-primary);
+                    background: var(--bg);
+                    outline: none;
+                    line-height: 1.5;
+                    letter-spacing: -0.2px;
+                    transition: border-color 0.2s, box-shadow 0.2s;
+                    -webkit-font-smoothing: antialiased;
+                }
+
+                .caption-input::placeholder { color: var(--text-tertiary); }
+
+                .caption-input:focus {
+                    border-color: var(--accent);
+                    box-shadow: 0 0 0 3px var(--accent-light);
+                    background: var(--surface-solid);
+                }
+
+                /* VISIBILITY */
+                .vis-row {
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    padding: 14px;
+                    background: var(--bg);
+                    border-radius: var(--radius-md);
+                }
+
+                .vis-label {
+                    font-size: 15px;
+                    font-weight: 500;
+                    letter-spacing: -0.2px;
+                    color: var(--text-primary);
+                }
+
+                .vis-select {
+                    background: none;
+                    border: none;
+                    font-size: 15px;
+                    font-family: var(--font);
+                    color: var(--accent);
+                    font-weight: 500;
+                    cursor: pointer;
+                    outline: none;
+                    letter-spacing: -0.2px;
+                    -webkit-font-smoothing: antialiased;
+                }
+
+                /* FOOTER */
+                .footer {
+                    padding: 0 20px 20px;
+                }
+
+                .btn-primary {
+                    width: 100%;
+                    background: var(--accent);
+                    color: #fff;
+                    border: none;
+                    border-radius: var(--radius-md);
+                    padding: 15px;
+                    font-size: 17px;
+                    font-weight: 600;
+                    font-family: var(--font);
+                    cursor: pointer;
+                    transition: background 0.15s, transform 0.1s, opacity 0.15s;
+                    letter-spacing: -0.3px;
+                    -webkit-font-smoothing: antialiased;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    gap: 8px;
+                }
+
+                .btn-primary:hover:not(:disabled) { background: var(--accent-hover); transform: scale(1.005); }
+                .btn-primary:active:not(:disabled) { transform: scale(0.995); }
+                .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }
+
+                .spinner {
+                    width: 18px;
+                    height: 18px;
+                    border: 2.5px solid rgba(255,255,255,0.4);
+                    border-top-color: #fff;
+                    border-radius: 50%;
+                    animation: spin 0.7s linear infinite;
+                }
+
+                @keyframes spin { to { transform: rotate(360deg); } }
+
+                /* PROGRESS PANEL */
+                .progress-panel {
+                    position: fixed;
+                    bottom: 24px;
+                    right: 24px;
+                    width: 300px;
+                    background: rgba(255,255,255,0.9);
+                    backdrop-filter: blur(20px) saturate(1.8);
+                    -webkit-backdrop-filter: blur(20px) saturate(1.8);
+                    border: 1px solid var(--border);
+                    border-radius: var(--radius-lg);
+                    box-shadow: var(--shadow-lg);
+                    padding: 16px;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 12px;
+                    animation: panelIn 0.3s var(--transition) both;
+                }
+
+                @keyframes panelIn {
+                    from { opacity: 0; transform: translateY(12px) scale(0.97); }
+                    to   { opacity: 1; transform: translateY(0) scale(1); }
+                }
+
+                .panel-header {
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                }
+
+                .panel-dot {
+                    width: 8px;
+                    height: 8px;
+                    border-radius: 50%;
+                    background: var(--accent);
+                    animation: pulse 1.2s ease-in-out infinite;
+                }
+
+                @keyframes pulse {
+                    0%, 100% { opacity: 1; transform: scale(1); }
+                    50% { opacity: 0.6; transform: scale(0.85); }
+                }
+
+                .panel-title {
+                    font-size: 14px;
+                    font-weight: 600;
+                    color: var(--text-primary);
+                    letter-spacing: -0.2px;
+                }
+
+                .progress-item { display: flex; flex-direction: column; gap: 5px; }
+
+                .progress-meta {
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                }
+
+                .progress-name {
+                    font-size: 12px;
+                    color: var(--text-secondary);
+                    max-width: 200px;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                    white-space: nowrap;
+                    letter-spacing: -0.1px;
+                }
+
+                .progress-pct {
+                    font-size: 12px;
+                    font-weight: 600;
+                    color: var(--accent);
+                    letter-spacing: -0.1px;
+                }
+
+                .progress-track {
+                    height: 3px;
+                    border-radius: 99px;
+                    background: var(--border);
+                    overflow: hidden;
+                }
+
+                .progress-fill {
+                    height: 100%;
+                    border-radius: 99px;
+                    background: var(--accent);
+                    transition: width 0.2s ease;
+                }
+
+                @media (prefers-color-scheme: dark) {
+                    :root {
+                        --bg: #1c1c1e;
+                        --surface-solid: #2c2c2e;
+                        --border: rgba(255,255,255,0.10);
+                        --border-strong: rgba(255,255,255,0.16);
+                        --text-primary: #f5f5f7;
+                        --text-secondary: #98989d;
+                        --text-tertiary: #636366;
+                        --accent-light: rgba(10,132,255,0.16);
+                        --accent: #0a84ff;
+                        --accent-hover: #1d8fff;
+                        --shadow-sm: 0 1px 3px rgba(0,0,0,0.3);
+                        --shadow-md: 0 4px 20px rgba(0,0,0,0.4);
+                        --shadow-lg: 0 12px 40px rgba(0,0,0,0.5);
+                    }
+
+                    .progress-panel {
+                        background: rgba(44,44,46,0.95);
+                    }
+                }
             `}</style>
 
-            <div className="max-w-[480px] w-full bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-zinc-100 dark:border-zinc-800 overflow-hidden flex flex-col scale-in">
+            <div className="page">
+                <div className="card">
 
-                {/* ── HEADER ── */}
-                <div className="px-5 py-4 border-b border-zinc-100 dark:border-zinc-800 flex items-center justify-between">
-                    <button
-                        onClick={step === STEPS.CAPTION ? () => setStep(STEPS.UPLOAD) : undefined}
-                        className={`flex items-center gap-1 text-sm font-medium transition-colors
-                            ${step === STEPS.CAPTION ? 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 cursor-pointer' : 'text-transparent pointer-events-none'}`}
-                    >
-                        <ChevronLeft /> Back
-                    </button>
-
-                    <span className="text-sm font-bold tracking-tight text-zinc-800 dark:text-zinc-100">
-                        {step === STEPS.SUCCESS ? 'Posted!' : 'Create new post'}
-                    </span>
-
-                    {step === STEPS.UPLOAD && (
-                        <button
-                            disabled={!files.length}
-                            onClick={() => setStep(STEPS.CAPTION)}
-                            className="text-sm font-bold text-blue-500 hover:text-blue-600 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                        >
-                            Next
-                        </button>
-                    )}
-                    {step === STEPS.CAPTION && (
-                        <button
-                            disabled={loading}
-                            onClick={handleSubmit}
-                            className="text-sm font-bold text-blue-500 hover:text-blue-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
-                        >
-                            {loading
-                                ? <svg className="spinner" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" strokeLinecap="round" /></svg>
-                                : 'Share'
-                            }
-                        </button>
-                    )}
-                    {step === STEPS.SUCCESS && <div className="w-12" />}
-                </div>
-
-                {/* ── STEP: UPLOAD ── */}
-                {step === STEPS.UPLOAD && (
-                    <div className="flex-1 flex flex-col fade-up">
-                        {/* Drop zone */}
-                        {!files.length ? (
-                            <div
-                                onDragOver={e => { e.preventDefault(); setDragActive(true) }}
-                                onDragLeave={() => setDragActive(false)}
-                                onDrop={onDrop}
-                                onClick={() => fileInputRef.current?.click()}
-                                className={`flex-1 min-h-[360px] flex flex-col items-center justify-center gap-5 p-10 cursor-pointer transition-all duration-200
-                                    ${dragActive ? 'bg-blue-50 dark:bg-blue-950/30' : 'hover:bg-zinc-50 dark:hover:bg-zinc-800/30'}`}
-                            >
-                                <div className={`transition-colors duration-200 ${dragActive ? 'text-blue-400' : 'text-zinc-300 dark:text-zinc-600'}`}>
-                                    <UploadIcon />
-                                </div>
-                                <div className="text-center space-y-3">
-                                    <p className="text-base font-medium text-zinc-400 dark:text-zinc-500">
-                                        {dragActive ? 'Drop to upload' : 'Drag photos & videos here'}
-                                    </p>
-                                    <button
-                                        onClick={e => { e.stopPropagation(); fileInputRef.current?.click() }}
-                                        className="px-5 py-2 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-sm font-bold rounded-lg hover:opacity-80 active:scale-95 transition-all"
-                                    >
-                                        Select from computer
-                                    </button>
-                                </div>
-                            </div>
-                        ) : (
-                            /* Preview carousel */
-                            <div className="flex-1 flex flex-col">
-                                {/* Main preview */}
-                                <div className="relative bg-zinc-100 dark:bg-zinc-800 aspect-square">
-                                    {files[activeIdx]?.type === 'image'
-                                        ? <img src={files[activeIdx].preview} alt="" className="w-full h-full object-contain" />
-                                        : <video src={files[activeIdx].preview} controls className="w-full h-full object-contain" />
-                                    }
-
-                                    {/* Nav arrows */}
-                                    {files.length > 1 && (
-                                        <>
-                                            <button onClick={() => setActiveIdx(i => Math.max(0, i - 1))}
-                                                disabled={activeIdx === 0}
-                                                className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-black/50 hover:bg-black/70 rounded-full flex items-center justify-center text-white disabled:opacity-0 transition-all">
-                                                <ChevronLeft />
-                                            </button>
-                                            <button onClick={() => setActiveIdx(i => Math.min(files.length - 1, i + 1))}
-                                                disabled={activeIdx === files.length - 1}
-                                                className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 bg-black/50 hover:bg-black/70 rounded-full flex items-center justify-center text-white disabled:opacity-0 transition-all">
-                                                <ChevronRight />
-                                            </button>
-                                            {/* Dots */}
-                                            <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
-                                                {files.map((_, i) => (
-                                                    <button key={i} onClick={() => setActiveIdx(i)}
-                                                        className={`w-1.5 h-1.5 rounded-full transition-all ${i === activeIdx ? 'bg-white w-3' : 'bg-white/50'}`} />
-                                                ))}
-                                            </div>
-                                        </>
-                                    )}
-
-                                    {/* Type badge */}
-                                    <div className="absolute top-2 left-2 bg-black/50 text-white rounded-md px-2 py-1 flex items-center gap-1 text-xs font-medium">
-                                        {files[activeIdx]?.type === 'image' ? <ImageIcon /> : <VideoIcon />}
-                                        {files[activeIdx]?.type}
-                                    </div>
-                                </div>
-
-                                {/* Thumbnails */}
-                                <div className="p-3 flex gap-2 overflow-x-auto thumb">
-                                    {files.map((f, i) => (
-                                        <div key={i} onClick={() => setActiveIdx(i)}
-                                            className={`relative flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden cursor-pointer transition-all
-                                                ${i === activeIdx ? 'ring-2 ring-blue-500 ring-offset-1' : 'opacity-60 hover:opacity-100'}`}
-                                        >
-                                            {f.type === 'image'
-                                                ? <img src={f.preview} alt="" className="w-full h-full object-cover" />
-                                                : <video src={f.preview} className="w-full h-full object-cover" />
-                                            }
-                                            <button
-                                                onClick={e => { e.stopPropagation(); removeFile(i) }}
-                                                className="absolute top-0.5 right-0.5 w-5 h-5 bg-black/70 hover:bg-black rounded-full flex items-center justify-center text-white transition-colors"
-                                            >
-                                                <CloseIcon />
-                                            </button>
-                                        </div>
-                                    ))}
-
-                                    {/* Add more */}
-                                    {files.length < 10 && (
-                                        <button
-                                            onClick={() => fileInputRef.current?.click()}
-                                            className="flex-shrink-0 w-16 h-16 rounded-lg border-2 border-dashed border-zinc-300 dark:border-zinc-600 flex items-center justify-center text-zinc-400 hover:border-blue-400 hover:text-blue-400 transition-colors"
-                                        >
-                                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14" /></svg>
-                                        </button>
-                                    )}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Error */}
-                        {error && (
-                            <div className="mx-4 mb-3 px-4 py-2.5 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-xl text-sm text-red-600 dark:text-red-400">
-                                {error}
-                            </div>
-                        )}
-
-                        {/* Footer */}
-                        <div className="px-5 py-3 border-t border-zinc-100 dark:border-zinc-800 flex items-center justify-between text-[11px] text-zinc-400 font-medium uppercase tracking-widest">
-                            <span>Max 20 MB per file</span>
-                            <span>{files.length}/10 files</span>
+                    {/* HEADER */}
+                    <div className="header">
+                        <div className="header-left">
+                            <button className="btn-ghost" onClick={reset}>Cancel</button>
                         </div>
+                        <span className="header-title">New Post</span>
+                        <button
+                            className="btn-share"
+                            onClick={handleSubmit}
+                            disabled={loading || !files.length}
+                        >
+                            Share
+                        </button>
                     </div>
-                )}
+                    <div className="divider" />
 
-                {/* ── STEP: CAPTION ── */}
-                {step === STEPS.CAPTION && (
-                    <div className="flex flex-col fade-up">
-                        {/* Media mini-preview */}
-                        <div className="px-5 pt-4 pb-3">
-                            <div className="flex gap-2 overflow-x-auto thumb pb-1">
+                    <div className="body">
+
+                        {/* DROP / PREVIEW ZONE */}
+                        <div
+                            className={`drop-zone ${isDragging ? "dragging" : ""} ${files.length > 0 ? "has-files" : ""}`}
+                            onClick={() => !files.length && fileInputRef.current?.click()}
+                            onDragOver={e => { e.preventDefault(); setIsDragging(true) }}
+                            onDragLeave={() => setIsDragging(false)}
+                            onDrop={handleDrop}
+                        >
+                            {files.length === 0 ? (
+                                <>
+                                    <div className="drop-icon">
+                                        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                                        </svg>
+                                    </div>
+                                    <p className="drop-label">Drop photos & videos</p>
+                                    <p className="drop-sub">or click to browse · up to 20MB each</p>
+                                </>
+                            ) : mainPreview ? (
+                                <>
+                                    {mainPreview.type === "image" ? (
+                                        <img src={mainPreview.preview} className="preview-img" alt="" />
+                                    ) : (
+                                        <video src={mainPreview.preview} className="preview-video" autoPlay muted loop playsInline />
+                                    )}
+                                    <div className="preview-overlay">
+                                        <button
+                                            className="overlay-btn"
+                                            onClick={e => { e.stopPropagation(); fileInputRef.current?.click() }}
+                                        >
+                                            + Add more
+                                        </button>
+                                    </div>
+                                </>
+                            ) : null}
+                        </div>
+
+                        {/* FILMSTRIP */}
+                        {files.length > 0 && (
+                            <div className="filmstrip">
                                 {files.map((f, i) => (
-                                    <div key={i} className="flex-shrink-0 w-14 h-14 rounded-xl overflow-hidden bg-zinc-100 dark:bg-zinc-800">
-                                        {f.type === 'image'
-                                            ? <img src={f.preview} alt="" className="w-full h-full object-cover" />
-                                            : <video src={f.preview} className="w-full h-full object-cover" />
-                                        }
+                                    <div
+                                        key={i}
+                                        className={`thumb-wrap ${(selectedIndex ?? 0) === i ? "selected" : ""}`}
+                                        onClick={() => setSelectedIndex(i)}
+                                    >
+                                        <img src={f.preview} className="thumb-img" alt="" />
+                                        <button
+                                            className="thumb-remove"
+                                            onClick={e => { e.stopPropagation(); removeFile(i) }}
+                                        >
+                                            <svg width="10" height="10" fill="none" viewBox="0 0 10 10">
+                                                <path d="M1 1l8 8M9 1L1 9" stroke="#fff" strokeWidth="1.8" strokeLinecap="round" />
+                                            </svg>
+                                        </button>
                                     </div>
                                 ))}
+
+                                <div className="thumb-add" onClick={() => fileInputRef.current?.click()}>
+                                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                                    </svg>
+                                </div>
                             </div>
-                        </div>
+                        )}
 
-                        <div className="border-t border-zinc-100 dark:border-zinc-800" />
-
-                        {/* Caption */}
-                        <div className="px-5 pt-4">
+                        {/* CAPTION */}
+                        <div className="caption-wrap">
+                            <span className="section-label">Caption</span>
                             <textarea
+                                className="caption-input"
+                                placeholder="Write a caption…"
                                 value={caption}
                                 onChange={e => setCaption(e.target.value)}
-                                maxLength={2200}
-                                placeholder="Write a caption..."
-                                rows={5}
-                                className="w-full resize-none bg-transparent text-sm text-zinc-800 dark:text-zinc-100 placeholder-zinc-400 outline-none leading-relaxed"
                             />
-                            <div className="text-right text-[11px] text-zinc-400 font-medium mb-3">
-                                {caption.length}/2200
-                            </div>
                         </div>
 
-                        <div className="border-t border-zinc-100 dark:border-zinc-800" />
-
-                        {/* Visibility */}
-                        <div className="px-5 py-4">
-                            <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest mb-3">Audience</p>
-                            <div className="flex gap-2">
-                                {[
-                                    { value: 'public', label: 'Everyone', Icon: GlobeIcon },
-                                    { value: 'followers', label: 'Followers', Icon: UsersIcon }
-                                ].map(({ value, label, Icon }) => (
-                                    <button
-                                        key={value}
-                                        onClick={() => setVisibility(value)}
-                                        className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium border transition-all
-                                            ${visibility === value
-                                                ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 border-transparent'
-                                                : 'bg-white dark:bg-zinc-800 text-zinc-500 border-zinc-200 dark:border-zinc-700 hover:border-zinc-400'
-                                            }`}
-                                    >
-                                        <Icon /> {label}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Error */}
-                        {error && (
-                            <div className="mx-5 mb-4 px-4 py-2.5 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-xl text-sm text-red-600 dark:text-red-400">
-                                {error}
-                            </div>
-                        )}
-
-                        {/* Share button (mobile-friendly big tap target) */}
-                        <div className="px-5 pb-5">
-                            <button
-                                onClick={handleSubmit}
-                                disabled={loading}
-                                className="w-full py-3 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-sm font-bold rounded-xl
-                                    hover:opacity-80 active:scale-[.98] disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+                        {/* VISIBILITY */}
+                        <div className="vis-row">
+                            <span className="vis-label">Audience</span>
+                            <select
+                                className="vis-select"
+                                value={visibility}
+                                onChange={e => setVisibility(e.target.value)}
                             >
-                                {loading
-                                    ? <><svg className="spinner" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" strokeLinecap="round" /></svg> Sharing…</>
-                                    : 'Share'
-                                }
-                            </button>
+                                <option value="public">Everyone</option>
+                                <option value="followers">Followers</option>
+                                <option value="private">Only Me</option>
+                            </select>
                         </div>
-                    </div>
-                )}
 
-                {/* ── STEP: SUCCESS ── */}
-                {step === STEPS.SUCCESS && (
-                    <div className="flex-1 flex flex-col items-center justify-center gap-5 py-16 px-10 fade-up">
-                        <div className="w-16 h-16 bg-zinc-900 dark:bg-zinc-100 rounded-full flex items-center justify-center text-white dark:text-zinc-900">
-                            <CheckIcon />
-                        </div>
-                        <div className="text-center space-y-1">
-                            <p className="text-base font-bold text-zinc-800 dark:text-zinc-100">Post shared!</p>
-                            <p className="text-sm text-zinc-400">Your post is now live.</p>
-                        </div>
+                    </div>
+
+                    {/* FOOTER SHARE BUTTON */}
+                    <div className="footer">
                         <button
-                            onClick={reset}
-                            className="mt-2 px-6 py-2.5 bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-sm font-bold rounded-xl hover:opacity-80 active:scale-95 transition-all"
+                            className="btn-primary"
+                            onClick={handleSubmit}
+                            disabled={loading || !files.length}
                         >
-                            Create another
+                            {loading ? (
+                                <>
+                                    <div className="spinner" />
+                                    Uploading…
+                                </>
+                            ) : "Share Post"}
                         </button>
                     </div>
-                )}
+
+                </div>
             </div>
 
-            {/* Hidden file input */}
+            {/* HIDDEN FILE INPUT */}
             <input
-                ref={fileInputRef}
                 type="file"
                 multiple
                 accept="image/*,video/*"
-                className="hidden"
-                onChange={e => { if (e.target.files) { addFiles(e.target.files); e.target.value = '' } }}
+                ref={fileInputRef}
+                style={{ display: "none" }}
+                onChange={e => {
+                    if (e.target.files) {
+                        addFiles(e.target.files)
+                        e.target.value = ""
+                    }
+                }}
             />
-        </div>
+
+            {/* UPLOAD PROGRESS PANEL */}
+            {loading && (
+                <div className="progress-panel">
+                    <div className="panel-header">
+                        <div className="panel-dot" />
+                        <span className="panel-title">Uploading {files.length} {files.length === 1 ? "file" : "files"}</span>
+                    </div>
+                    {files.map((f, i) => (
+                        <div key={i} className="progress-item">
+                            <div className="progress-meta">
+                                <span className="progress-name">{f.file.name}</span>
+                                <span className="progress-pct">{uploadProgress[i] || 0}%</span>
+                            </div>
+                            <div className="progress-track">
+                                <div
+                                    className="progress-fill"
+                                    style={{ width: `${uploadProgress[i] || 0}%` }}
+                                />
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </>
     )
 }

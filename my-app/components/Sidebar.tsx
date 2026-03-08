@@ -4,10 +4,10 @@ import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { 
-    Home, Search, Compass, Play, 
-    MessageSquare, Heart, PlusSquare, 
-    LogOut, Menu, ChevronLeft, Shield 
+import {
+    Home, Search, Compass, Play,
+    MessageSquare, Heart, PlusSquare,
+    LogOut, Menu, ChevronLeft, Shield
 } from 'lucide-react'
 import { cachedApiFetch } from '@/lib/api'
 
@@ -20,9 +20,7 @@ interface NavItem {
 }
 
 interface ProfileResponse {
-    data: {
-        profilePicture: string;
-    };
+    data: { profilePicture: string };
 }
 
 export default function Sidebar() {
@@ -51,7 +49,7 @@ export default function Sidebar() {
     }, [])
 
     const handleLogout = async (allDevices = false) => {
-        const endpoint = allDevices ? "/api/auth/logout-all" : "/api/auth/logout";
+        const endpoint = allDevices ? "/api/auth/logout-all" : "/api/auth/logout"
         try {
             await fetch(`https://zynon.onrender.com${endpoint}`, {
                 method: "POST",
@@ -62,10 +60,7 @@ export default function Sidebar() {
             console.error("logout failed", err)
         }
         localStorage.removeItem("accessToken")
-        // clear any cached API responses so stale data doesn't linger
-        try {
-            localStorage.clear()
-        } catch {}
+        try { localStorage.clear() } catch { }
         router.push("/login")
     }
 
@@ -79,177 +74,382 @@ export default function Sidebar() {
         { label: 'Create', path: '/create', icon: PlusSquare },
     ]
 
+    const NavLink = ({ item }: { item: NavItem }) => {
+        const isActive = pathname === item.path
+        const Icon = item.icon
+        return (
+            <Link
+                href={item.path}
+                onClick={item.onClick}
+                className={`
+                    group relative flex items-center rounded-2xl transition-all duration-200
+                    ${isCollapsed
+                        ? 'justify-center mx-auto'
+                        : 'px-4 gap-4 w-full'
+                    }
+                    ${isActive
+                        ? 'text-blue-500'
+                        : 'text-zinc-500 hover:text-zinc-100'
+                    }
+                `}
+                style={{
+                    height: 48,
+                    width: isCollapsed ? 48 : '100%',
+                }}
+            >
+                {isActive && (
+                    <motion.div
+                        layoutId="sidebar-active"
+                        className="absolute inset-0 bg-blue-500/[0.08] border border-blue-500/20 rounded-2xl"
+                        style={{ zIndex: 0 }}
+                    />
+                )}
+
+                <span className="relative z-10 flex-shrink-0">
+                    <Icon size={22} strokeWidth={isActive ? 2.5 : 2} />
+                    {item.badge && (
+                        <span className="absolute -top-1 -right-1 bg-red-500 w-2 h-2 rounded-full border-2 border-[#080808]" />
+                    )}
+                </span>
+
+                {!isCollapsed && (
+                    <motion.span
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ duration: 0.15 }}
+                        className={`relative z-10 text-sm font-bold tracking-tight whitespace-nowrap ${isActive ? 'italic' : ''}`}
+                    >
+                        {item.label}
+                    </motion.span>
+                )}
+            </Link>
+        )
+    }
+
     return (
         <>
             <motion.aside
                 layout
                 initial={false}
-                animate={{ width: isCollapsed ? 88 : 260 }}
+                animate={{ width: isCollapsed ? 76 : 240 }}
                 transition={{ type: "spring", stiffness: 300, damping: 30 }}
-                className="sticky top-0 h-screen flex flex-col py-6 z-[100] border-r bg-white dark:bg-[#080808] border-zinc-100 dark:border-white/[0.06]"
+                style={{
+                    position: 'sticky',
+                    top: 0,
+                    height: '100vh',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    flexShrink: 0,
+                    overflow: 'hidden',
+                    zIndex: 100,
+                    borderRight: '1px solid rgba(255,255,255,0.06)',
+                    backgroundColor: '#080808',
+                    paddingTop: 24,
+                    paddingBottom: 20,
+                }}
             >
-                {/* 1. BRANDING */}
-                <div className="px-7 mb-12 flex items-center overflow-hidden">
+                {/* 1. LOGO */}
+                <div
+                    style={{
+                        height: 48,
+                        display: 'flex',
+                        alignItems: 'center',
+                        paddingLeft: isCollapsed ? 0 : 20,
+                        paddingRight: isCollapsed ? 0 : 20,
+                        justifyContent: isCollapsed ? 'center' : 'flex-start',
+                        marginBottom: 32,
+                        flexShrink: 0,
+                    }}
+                >
                     <AnimatePresence mode="wait">
                         {!isCollapsed ? (
                             <motion.div
                                 key="logo-full"
-                                initial={{ opacity: 0, x: -10 }}
+                                initial={{ opacity: 0, x: -8 }}
                                 animate={{ opacity: 1, x: 0 }}
-                                exit={{ opacity: 0, x: -10 }}
-                                className="flex items-center gap-2"
+                                exit={{ opacity: 0, x: -8 }}
+                                transition={{ duration: 0.15 }}
+                                style={{ display: 'flex', alignItems: 'center', gap: 10 }}
                             >
-                                <div className="w-8 h-8 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/20">
-                                    <span className="text-white font-black text-xl italic">Z</span>
+                                <div style={{
+                                    width: 34, height: 34,
+                                    background: '#2563eb',
+                                    borderRadius: 10,
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    flexShrink: 0,
+                                    boxShadow: '0 4px 14px rgba(37,99,235,0.4)'
+                                }}>
+                                    <span style={{ color: '#fff', fontWeight: 900, fontSize: 18, fontStyle: 'italic' }}>Z</span>
                                 </div>
-                                <h1 className="text-xl font-black tracking-tighter italic dark:text-white">
+                                <span style={{ fontSize: 18, fontWeight: 900, letterSpacing: '-0.5px', fontStyle: 'italic', color: '#fff' }}>
                                     ZYNON
-                                </h1>
+                                </span>
                             </motion.div>
                         ) : (
-                            <motion.div 
-                                key="logo-dot" 
-                                initial={{ scale: 0.5, opacity: 0 }} 
-                                animate={{ scale: 1, opacity: 1 }} 
-                                className="w-10 h-10 bg-zinc-100 dark:bg-white/5 rounded-2xl flex items-center justify-center mx-auto border border-zinc-200 dark:border-white/10"
+                            <motion.div
+                                key="logo-icon"
+                                initial={{ scale: 0.7, opacity: 0 }}
+                                animate={{ scale: 1, opacity: 1 }}
+                                exit={{ scale: 0.7, opacity: 0 }}
+                                transition={{ duration: 0.15 }}
+                                style={{
+                                    width: 34, height: 34,
+                                    background: '#2563eb',
+                                    borderRadius: 10,
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    boxShadow: '0 4px 14px rgba(37,99,235,0.4)'
+                                }}
                             >
-                                <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse" />
+                                <span style={{ color: '#fff', fontWeight: 900, fontSize: 18, fontStyle: 'italic' }}>Z</span>
                             </motion.div>
                         )}
                     </AnimatePresence>
                 </div>
 
-                {/* 2. MAIN NAVIGATION */}
-                <nav className="flex-1 px-4 space-y-2">
-                    {navItems.map((item) => {
-                        const isActive = pathname === item.path;
-                        const Icon = item.icon;
-                        return (
-                            <Link
-                                key={item.label}
-                                href={item.path}
-                                onClick={item.onClick}
-                                className={`group relative flex items-center rounded-2xl transition-all duration-300
-                                    ${isCollapsed ? 'justify-center w-14 h-14 mx-auto' : 'px-4 py-3.5 gap-4 w-full'}
-                                    ${isActive ? 'text-blue-500' : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100'}`}
-                            >
-                                {isActive && (
-                                    <motion.div
-                                        layoutId="sidebar-glow"
-                                        className="absolute inset-0 bg-blue-500/[0.04] dark:bg-white/[0.03] border border-blue-500/10 dark:border-white/10 rounded-2xl -z-10 shadow-[0_0_20px_rgba(59,130,246,0.05)]"
-                                    />
-                                )}
-
-                                <div className="relative">
-                                    <Icon size={22} strokeWidth={isActive ? 2.5 : 2} />
-                                    {item.badge && (
-                                        <span className="absolute -top-1 -right-1 bg-red-500 w-2 h-2 rounded-full border-2 border-white dark:border-[#080808]" />
-                                    )}
-                                </div>
-
-                                {!isCollapsed && (
-                                    <motion.span 
-                                        initial={{ opacity: 0 }} 
-                                        animate={{ opacity: 1 }} 
-                                        className={`text-sm font-bold tracking-tight ${isActive ? 'italic' : ''}`}
-                                    >
-                                        {item.label}
-                                    </motion.span>
-                                )}
-                            </Link>
-                        )
-                    })}
+                {/* 2. MAIN NAV */}
+                <nav
+                    style={{
+                        flex: 1,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 2,
+                        paddingLeft: isCollapsed ? 14 : 12,
+                        paddingRight: isCollapsed ? 14 : 12,
+                        overflowY: 'auto',
+                        overflowX: 'hidden',
+                    }}
+                >
+                    {navItems.map(item => <NavLink key={item.label} item={item} />)}
                 </nav>
 
-                {/* 3. FOOTER ACTIONS */}
-                <div className="px-4 mt-auto space-y-2">
-                    {/* PROFILE LINK */}
+                {/* 3. FOOTER */}
+                <div
+                    style={{
+                        flexShrink: 0,
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 2,
+                        paddingLeft: isCollapsed ? 14 : 12,
+                        paddingRight: isCollapsed ? 14 : 12,
+                        marginTop: 8,
+                    }}
+                >
+                    {/* PROFILE */}
                     <Link
                         href="/profile"
-                        className={`group flex items-center rounded-2xl transition-all duration-300
-                            ${isCollapsed ? 'justify-center w-14 h-14 mx-auto' : 'px-4 py-3 gap-4 w-full'}
-                            ${pathname === '/profile' ? 'text-blue-500' : 'text-zinc-500'}`}
+                        style={{
+                            height: 48,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: isCollapsed ? 0 : 14,
+                            justifyContent: isCollapsed ? 'center' : 'flex-start',
+                            borderRadius: 16,
+                            paddingLeft: isCollapsed ? 0 : 16,
+                            paddingRight: isCollapsed ? 0 : 16,
+                            width: isCollapsed ? 48 : '100%',
+                            marginLeft: isCollapsed ? 'auto' : 0,
+                            marginRight: isCollapsed ? 'auto' : 0,
+                            color: pathname === '/profile' ? '#3b82f6' : '#71717a',
+                            textDecoration: 'none',
+                            transition: 'color 0.2s',
+                            position: 'relative',
+                        }}
+                        className="hover:text-zinc-100"
                     >
-                        <div className={`w-7 h-7 rounded-full overflow-hidden ring-2 transition-all duration-300 ${pathname === '/profile' ? 'ring-blue-500 shadow-lg shadow-blue-500/20' : 'ring-zinc-200 dark:ring-white/10'}`}>
+                        <div style={{
+                            width: 28, height: 28,
+                            borderRadius: '50%',
+                            overflow: 'hidden',
+                            flexShrink: 0,
+                            outline: pathname === '/profile' ? '2px solid #3b82f6' : '2px solid rgba(255,255,255,0.12)',
+                            outlineOffset: 1,
+                        }}>
                             <img
-                                src={
-                                    avatar ||
-                                    avatar ||
-                                    "https://images.unsplash.com/photo-1614850523296-d8c1af93d400?auto=format&fit=crop&w=100&q=80"
-                                }
-                                className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500"
+                                src={avatar || "https://images.unsplash.com/photo-1614850523296-d8c1af93d400?auto=format&fit=crop&w=100&q=80"}
+                                style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
                                 alt="Profile"
                             />
                         </div>
-                        {!isCollapsed && <span className="text-sm font-bold tracking-tight">Profile</span>}
+                        {!isCollapsed && (
+                            <motion.span
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                style={{ fontSize: 14, fontWeight: 700, letterSpacing: '-0.2px', whiteSpace: 'nowrap' }}
+                            >
+                                Profile
+                            </motion.span>
+                        )}
                     </Link>
 
                     {/* LOGOUT */}
                     <button
                         onClick={() => setShowLogoutConfirm(true)}
-                        className={`flex items-center rounded-2xl text-zinc-400 hover:text-red-500 hover:bg-red-500/5 transition-all duration-300
-                            ${isCollapsed ? 'justify-center w-14 h-14 mx-auto' : 'px-4 py-3.5 gap-4 w-full'}`}
+                        style={{
+                            height: 48,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: isCollapsed ? 0 : 14,
+                            justifyContent: isCollapsed ? 'center' : 'flex-start',
+                            borderRadius: 16,
+                            paddingLeft: isCollapsed ? 0 : 16,
+                            paddingRight: isCollapsed ? 0 : 16,
+                            width: isCollapsed ? 48 : '100%',
+                            marginLeft: isCollapsed ? 'auto' : 0,
+                            marginRight: isCollapsed ? 'auto' : 0,
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            color: '#71717a',
+                            transition: 'color 0.2s',
+                        }}
+                        className="hover:text-red-400"
                     >
-                        <LogOut size={22} />
-                        {!isCollapsed && <span className="text-sm font-bold tracking-tight">Logout</span>}
+                        <LogOut size={20} />
+                        {!isCollapsed && (
+                            <motion.span
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                style={{ fontSize: 14, fontWeight: 700, letterSpacing: '-0.2px', whiteSpace: 'nowrap' }}
+                            >
+                                Logout
+                            </motion.span>
+                        )}
                     </button>
 
-                    <div className="h-px bg-zinc-100 dark:bg-white/[0.06] my-2" />
+                    {/* DIVIDER */}
+                    <div style={{ height: 1, background: 'rgba(255,255,255,0.06)', margin: '4px 4px' }} />
 
                     {/* COLLAPSE TOGGLE */}
                     <button
                         onClick={() => setIsCollapsed(!isCollapsed)}
-                        className={`flex items-center gap-4 text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-all
-                            ${isCollapsed ? 'justify-center w-14 h-14 mx-auto' : 'px-4 py-3.5 w-full'}`}
+                        style={{
+                            height: 44,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: isCollapsed ? 0 : 14,
+                            justifyContent: isCollapsed ? 'center' : 'flex-start',
+                            borderRadius: 16,
+                            paddingLeft: isCollapsed ? 0 : 16,
+                            paddingRight: isCollapsed ? 0 : 16,
+                            width: isCollapsed ? 48 : '100%',
+                            marginLeft: isCollapsed ? 'auto' : 0,
+                            marginRight: isCollapsed ? 'auto' : 0,
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            color: '#52525b',
+                            transition: 'color 0.2s',
+                        }}
+                        className="hover:text-zinc-300"
                     >
-                        <motion.div animate={{ rotate: isCollapsed ? 180 : 0 }}>
-                            {isCollapsed ? <Menu size={20} /> : <ChevronLeft size={20} />}
+                        <motion.div animate={{ rotate: isCollapsed ? 180 : 0 }} transition={{ duration: 0.25 }}>
+                            <ChevronLeft size={18} />
                         </motion.div>
-                        {!isCollapsed && <span className="text-[11px] font-black uppercase tracking-widest opacity-60">Collapse</span>}
+                        {!isCollapsed && (
+                            <motion.span
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase', opacity: 0.5 }}
+                            >
+                                Collapse
+                            </motion.span>
+                        )}
                     </button>
                 </div>
             </motion.aside>
 
-            {/* --- LOGOUT MODAL --- */}
+            {/* LOGOUT MODAL */}
             <AnimatePresence>
                 {showLogoutConfirm && (
                     <motion.div
-                        initial={{ opacity: 0 }} 
-                        animate={{ opacity: 1 }} 
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
-                        className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-md p-4"
+                        style={{
+                            position: 'fixed', inset: 0, zIndex: 200,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            background: 'rgba(0,0,0,0.7)',
+                            backdropFilter: 'blur(12px)',
+                            WebkitBackdropFilter: 'blur(12px)',
+                            padding: 16,
+                        }}
                     >
                         <motion.div
-                            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                            initial={{ scale: 0.92, opacity: 0, y: 16 }}
                             animate={{ scale: 1, opacity: 1, y: 0 }}
-                            exit={{ scale: 0.9, opacity: 0, y: 20 }}
-                            className="bg-white dark:bg-[#0c0c0c] p-8 rounded-[40px] max-w-sm w-full shadow-2xl border border-zinc-100 dark:border-white/5 text-center relative overflow-hidden"
+                            exit={{ scale: 0.92, opacity: 0, y: 16 }}
+                            style={{
+                                background: '#0c0c0c',
+                                padding: 32,
+                                borderRadius: 32,
+                                maxWidth: 360,
+                                width: '100%',
+                                boxShadow: '0 24px 64px rgba(0,0,0,0.6)',
+                                border: '1px solid rgba(255,255,255,0.06)',
+                                textAlign: 'center',
+                                position: 'relative',
+                                overflow: 'hidden',
+                            }}
                         >
-                            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-red-500 to-transparent opacity-50" />
-                            
-                            <div className="w-16 h-16 bg-red-500/10 rounded-3xl flex items-center justify-center mx-auto mb-6">
-                                <Shield className="text-red-500" size={28} />
+                            <div style={{
+                                position: 'absolute', top: 0, left: 0, right: 0, height: 1,
+                                background: 'linear-gradient(90deg, transparent, rgba(239,68,68,0.6), transparent)'
+                            }} />
+
+                            <div style={{
+                                width: 60, height: 60,
+                                background: 'rgba(239,68,68,0.1)',
+                                borderRadius: 20,
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                margin: '0 auto 20px',
+                            }}>
+                                <Shield size={26} color="#ef4444" />
                             </div>
 
-                            <h3 className="text-xl font-black tracking-tight italic dark:text-white uppercase">Secure Sign Out</h3>
-                            <p className="text-zinc-500 text-sm mt-2 mb-8 font-medium px-4">Are you sure you want to disconnect from the Zynon network?</p>
+                            <h3 style={{ fontSize: 18, fontWeight: 900, letterSpacing: '-0.3px', fontStyle: 'italic', color: '#fff', textTransform: 'uppercase' }}>
+                                Secure Sign Out
+                            </h3>
+                            <p style={{ color: '#71717a', fontSize: 14, marginTop: 8, marginBottom: 28, lineHeight: 1.5 }}>
+                                Are you sure you want to disconnect from the Zynon network?
+                            </p>
 
-                            <div className="space-y-3">
-                                <button 
-                                    onClick={() => handleLogout(false)} 
-                                    className="w-full py-4 bg-zinc-900 dark:bg-white dark:text-black text-white rounded-2xl font-black text-xs uppercase tracking-widest active:scale-[0.97] transition-all hover:shadow-xl dark:hover:shadow-white/5"
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                                <button
+                                    onClick={() => handleLogout(false)}
+                                    style={{
+                                        width: '100%', padding: '14px 0',
+                                        background: '#fff', color: '#000',
+                                        border: 'none', borderRadius: 16,
+                                        fontSize: 12, fontWeight: 800,
+                                        letterSpacing: '0.1em', textTransform: 'uppercase',
+                                        cursor: 'pointer', transition: 'opacity 0.15s',
+                                    }}
+                                    className="hover:opacity-90 active:scale-[0.98]"
                                 >
                                     End Session
                                 </button>
-                                <button 
-                                    onClick={() => handleLogout(true)} 
-                                    className="w-full py-3 text-red-500 font-bold text-xs uppercase tracking-tighter opacity-70 hover:opacity-100 transition-opacity"
+                                <button
+                                    onClick={() => handleLogout(true)}
+                                    style={{
+                                        width: '100%', padding: '12px 0',
+                                        background: 'none', border: 'none',
+                                        color: '#ef4444', fontSize: 12, fontWeight: 700,
+                                        letterSpacing: '0.05em', textTransform: 'uppercase',
+                                        cursor: 'pointer', opacity: 0.7, transition: 'opacity 0.15s',
+                                    }}
+                                    className="hover:opacity-100"
                                 >
                                     Sign out all devices
                                 </button>
-                                <button 
-                                    onClick={() => setShowLogoutConfirm(false)} 
-                                    className="w-full py-3 text-zinc-400 font-bold text-xs uppercase tracking-widest"
+                                <button
+                                    onClick={() => setShowLogoutConfirm(false)}
+                                    style={{
+                                        width: '100%', padding: '12px 0',
+                                        background: 'none', border: 'none',
+                                        color: '#52525b', fontSize: 12, fontWeight: 700,
+                                        letterSpacing: '0.1em', textTransform: 'uppercase',
+                                        cursor: 'pointer',
+                                    }}
                                 >
                                     Cancel
                                 </button>
